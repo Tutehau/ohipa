@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Inscription | Ohipa</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
+  <link href="css/style.css" rel="stylesheet">
+</head>
+<body>
+  <script src="js/splash.js"></script>
+  <div class="auth-wrapper">
+    <div class="auth-card">
+      <div class="text-center mb-4">
+        <img class="auth-logo" src="logo.png" alt="Ohipa">
+        <h3 class="mt-2">Créer un compte</h3>
+      </div>
+      <div class="card shadow-sm p-4">
+        <div id="alert" class="d-none" role="alert"></div>
+        <form id="register-form">
+          <div class="mb-3">
+            <label class="form-label">Utilisateur</label>
+            <input type="text" id="reg-user" class="form-control" required>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Email</label>
+            <input type="email" id="reg-email" class="form-control" required>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Mot de passe</label>
+            <input type="password" id="reg-pass" class="form-control" minlength="6" required>
+          </div>
+          <button type="submit" class="btn btn-success w-100">
+            <i class="bi bi-person-check me-1"></i>S'inscrire
+          </button>
+        </form>
+        <div class="text-center mt-3 small">
+          <a href="login.html" class="text-decoration-none">
+            <i class="bi bi-arrow-left me-1"></i>Déjà inscrit&nbsp;? Connexion
+          </a>
+        </div>
+      </div>
+    </div>
+  </div>
+  <script src="js/api.js"></script>
+  <script src="js/register.js"></script>
+</body>
+</html>
