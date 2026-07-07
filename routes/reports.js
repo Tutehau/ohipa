@@ -59,9 +59,12 @@ router.get('/reports/export.csv', isAuth, (req, res) => {
     LEFT JOIN companies c ON c.id = e.company_id
     ${where} ORDER BY e.date DESC`).all(params);
 
-  // Échappement CSV : guillemets doublés, champ encadré si nécessaire.
+  // Échappement CSV : d'abord neutraliser l'injection de formule (une cellule
+  // commençant par = + - @ TAB CR est exécutée par les tableurs) en la
+  // préfixant d'une apostrophe ; puis guillemets doublés et encadrement.
   const esc = (v) => {
-    const s = String(v ?? '');
+    let s = String(v ?? '');
+    if (/^[=+\-@\t\r]/.test(s)) s = "'" + s;
     return /[",\n;]/.test(s) ? '"' + s.replaceAll('"', '""') + '"' : s;
   };
   const header = ['Date', 'Utilisateur', 'Entreprise', 'Heures', 'Description'];
