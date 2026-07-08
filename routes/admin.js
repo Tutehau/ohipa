@@ -88,7 +88,13 @@ router.put('/companies/:id', isAuth, (req, res) => {
 
 router.delete('/companies/:id', isAuth, (req, res) => {
   if (!canManageCompany(req, res)) return;
-  // Les entrées liées gardent leur historique (company_id passe à NULL, cf. FK).
+  // Refuse la suppression si la société est encore utilisée (par n'importe quel
+  // utilisateur), pour ne pas casser silencieusement les données d'autrui.
+  const used = db.prepare('SELECT COUNT(*) AS n FROM plannings WHERE company_id = ?').get(req.params.id).n
+    + db.prepare('SELECT COUNT(*) AS n FROM pointages WHERE company_id = ?').get(req.params.id).n;
+  if (used > 0) {
+    return res.status(400).json({ message: `Impossible : société utilisée par ${used} créneau(x)/pointage(s).` });
+  }
   db.prepare('DELETE FROM companies WHERE id = ?').run(req.params.id);
   res.json({ message: 'Entreprise supprimée' });
 });

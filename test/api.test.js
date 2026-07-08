@@ -275,6 +275,18 @@ test('oubli de départ : clock-in d\'un nouveau jour auto-clôture le segment ou
   assert.ok(list.some(p => p.endReason === 'oubli'), 'ancien segment marqué oubli');
 });
 
+test('société : suppression bloquée si encore utilisée', async () => {
+  const c = await makeNormalUser('mia', 'mia@test.fr', 'secret1');
+  const id = (await c('POST', '/api/companies', { name: 'Ma Boite' })).json.id;
+  await c('POST', '/api/plannings', { companyId: id, date: '2026-07-08', startTime: '08:00', endTime: '12:00' });
+
+  assert.equal((await c('DELETE', '/api/companies/' + id)).status, 400, 'société utilisée -> refus');
+
+  const slot = (await c('GET', '/api/plannings')).json[0].id;
+  await c('DELETE', '/api/plannings/' + slot);
+  assert.equal((await c('DELETE', '/api/companies/' + id)).status, 200, 'plus utilisée -> suppression OK');
+});
+
 // Utilitaire : récupère un cookie de session pour un appel fetch direct.
 async function loginCookie(username, password) {
   const res = await fetch(base + '/api/login', {
