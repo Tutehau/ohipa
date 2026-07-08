@@ -71,12 +71,14 @@ db.exec(`
   CREATE INDEX IF NOT EXISTS idx_pointages_user ON pointages(user_id, clock_in);
 `);
 
-// Ajout rétro-compatible de companies.created_by (bases déjà existantes).
-const hasCreatedBy = db.prepare("PRAGMA table_info(companies)").all()
-  .some((c) => c.name === 'created_by');
-if (!hasCreatedBy) {
-  db.exec("ALTER TABLE companies ADD COLUMN created_by TEXT REFERENCES users(id) ON DELETE SET NULL");
+// Ajouts de colonnes rétro-compatibles (bases déjà existantes).
+function ensureColumn(table, column, definition) {
+  const exists = db.prepare(`PRAGMA table_info(${table})`).all().some((c) => c.name === column);
+  if (!exists) db.exec(`ALTER TABLE ${table} ADD COLUMN ${definition}`);
 }
+ensureColumn('companies', 'created_by', 'created_by TEXT REFERENCES users(id) ON DELETE SET NULL');
+// Raison de fin d'un segment de pointage : NULL (en cours) | 'pause' | 'depart'.
+ensureColumn('pointages', 'end_reason', 'end_reason TEXT');
 
 // --- Migration ponctuelle depuis l'ancien stockage JSON ---------------------
 // Si des fichiers *.json existent et que la table users est vide, on importe

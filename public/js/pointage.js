@@ -1,6 +1,6 @@
 let companies = [];
 let timer = null;
-let clockedSince = null;
+let tickFrom = null;
 
 const todayStr = () => new Date().toLocaleDateString('sv-SE'); // YYYY-MM-DD local
 
@@ -12,6 +12,7 @@ function fmtDuration(ms) {
   return `${h}:${m}:${sec}`;
 }
 const fmtTime = (iso) => new Date(iso).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+const roundH = (n) => Math.round((n || 0) * 100) / 100;
 
 async function loadCompanies(selectedId) {
   companies = await api('/api/companies');
@@ -21,10 +22,11 @@ async function loadCompanies(selectedId) {
     : '<option value="">— Aucune société —</option>';
 }
 
-function startTimer() {
+function startTimer(fromIso) {
   stopTimer();
+  tickFrom = fromIso;
   const tick = () => {
-    document.getElementById('live-timer').textContent = fmtDuration(Date.now() - new Date(clockedSince).getTime());
+    document.getElementById('live-timer').textContent = fmtDuration(Date.now() - new Date(tickFrom).getTime());
   };
   tick();
   timer = setInterval(tick, 1000);
@@ -35,26 +37,33 @@ function stopTimer() {
   document.getElementById('live-timer').textContent = '00:00:00';
 }
 
+const show = (id, on) => document.getElementById(id).classList.toggle('d-none', !on);
+
 async function refreshStatus() {
   const st = await api('/api/pointages/status');
-  const btnIn = document.getElementById('btn-in');
-  const btnOut = document.getElementById('btn-out');
   const label = document.getElementById('status-label');
   const sel = document.getElementById('company-select');
-  if (st.clockedIn) {
-    clockedSince = st.since;
-    label.innerHTML = `<span class="text-success"><i class="bi bi-record-circle me-1"></i>Pointé depuis ${fmtTime(st.since)}</span>`;
-    btnIn.classList.add('d-none');
-    btnOut.classList.remove('d-none');
+  const timerEl = document.getElementById('live-timer');
+
+  if (st.state === 'working') {
+    label.innerHTML = `<span class="text-success"><i class="bi bi-record-circle me-1"></i>En poste depuis ${fmtTime(st.since)}</span>`;
+    timerEl.className = 'display-6 fw-bold mb-3 text-success';
     sel.disabled = true;
     if (st.companyId) sel.value = st.companyId;
-    startTimer();
+    show('btn-in', false); show('btn-resume', false); show('btn-pause', true); show('btn-out', true);
+    startTimer(st.since);
+  } else if (st.state === 'on_break') {
+    label.innerHTML = `<span class="text-warning"><i class="bi bi-cup-hot me-1"></i>En pause depuis ${fmtTime(st.since)}</span>`;
+    timerEl.className = 'display-6 fw-bold mb-3 text-warning';
+    sel.disabled = true;
+    if (st.companyId) sel.value = st.companyId;
+    show('btn-in', false); show('btn-resume', true); show('btn-pause', false); show('btn-out', true);
+    startTimer(st.since);
   } else {
-    clockedSince = null;
     label.innerHTML = `<span class="text-muted"><i class="bi bi-pause-circle me-1"></i>Non pointé</span>`;
-    btnIn.classList.remove('d-none');
-    btnOut.classList.add('d-none');
+    timerEl.className = 'display-6 fw-bold mb-3';
     sel.disabled = false;
+    show('btn-in', true); show('btn-resume', false); show('btn-pause', false); show('btn-out', false);
     stopTimer();
   }
 }
@@ -62,26 +71,42 @@ async function refreshStatus() {
 async function loadToday() {
   const all = await api('/api/pointages');
   const today = todayStr();
-  const mine = all.filter(p => new Date(p.clockIn).toLocaleDateString('sv-SE') === today);
+  const mine = all
+    .filter(p => new Date(p.clockIn).toLocaleDateString('sv-SE') === today)
+    .sort((a, b) => new Date(a.clockIn) - new Date(b.clockIn)); // ordre chronologique
+
   const ul = document.getElementById('segments');
-  let total = 0;
+  let worked = 0, breakMs = 0;
+
+  for (let i = 0; i < mine.length; i++) {
+    const p = mine[i];
+    if (p.clockOut) worked += p.hours;
+    // Temps de pause = écart entre une fin "pause" et la reprise suivante.
+    if (p.endReason === 'pause' && p.clockOut && mine[i + 1]) {
+      breakMs += new Date(mine[i + 1].clockIn) - new Date(p.clockOut);
+    }
+  }
+
   if (!mine.length) {
     ul.innerHTML = `<li class="list-group-item text-muted text-center py-3"><i class="bi bi-inbox me-1"></i>Aucun pointage aujourd'hui.</li>`;
   } else {
     ul.innerHTML = mine.map(p => {
       const done = !!p.clockOut;
-      if (done) total += p.hours;
-      const dur = done ? `${Math.round(p.hours * 100) / 100}h` : '<span class="text-success">en cours…</span>';
-      return `<li class="list-group-item d-flex justify-content-between align-items-center">
+      const dur = done ? `${roundH(p.hours)}h` : '<span class="text-success">en cours…</span>';
+      const tag = p.endReason === 'pause'
+        ? '<span class="badge bg-warning text-dark ms-2"><i class="bi bi-cup-hot"></i> pause</span>'
+        : (p.endReason === 'depart' ? '<span class="badge bg-secondary ms-2">départ</span>' : '');
+      return `<li class="list-group-item d-flex justify-content-between align-items-center flex-wrap gap-2">
         <span><i class="bi bi-arrow-right-short text-success"></i>${escapeHtml(fmtTime(p.clockIn))}
           <i class="bi bi-arrow-right-short text-danger ms-2"></i>${done ? escapeHtml(fmtTime(p.clockOut)) : '—'}
-          <small class="text-muted ms-2">${escapeHtml(p.companyName || '')}</small></span>
+          <small class="text-muted ms-2">${escapeHtml(p.companyName || '')}</small>${tag}</span>
         <span class="d-flex align-items-center gap-2"><span class="fw-semibold">${dur}</span>
           <button class="btn btn-sm btn-outline-danger" data-del="${escapeHtml(p.id)}" title="Supprimer"><i class="bi bi-trash"></i></button></span>
       </li>`;
     }).join('');
   }
-  document.getElementById('today-total').textContent = `${Math.round(total * 100) / 100}h`;
+  document.getElementById('today-total').textContent = `${roundH(worked)}h`;
+  document.getElementById('today-break').textContent = `Pause ${roundH(breakMs / 3600000)}h`;
 }
 
 async function refreshAll() { await refreshStatus(); await loadToday(); }
@@ -93,23 +118,23 @@ async function refreshAll() { await refreshStatus(); await loadToday(); }
   await loadCompanies();
   await refreshAll();
 
-  document.getElementById('btn-in').onclick = async () => {
-    try {
-      await api('/api/pointages/clock-in', 'POST', { companyId: document.getElementById('company-select').value || null });
-      await refreshAll();
-    } catch (e) { showAlert(e.message); }
-  };
-  document.getElementById('btn-out').onclick = async () => {
-    try { await api('/api/pointages/clock-out', 'POST'); await refreshAll(); }
-    catch (e) { showAlert(e.message); }
-  };
+  const post = async (url, body) => { await api(url, 'POST', body); await refreshAll(); };
+  const companyId = () => document.getElementById('company-select').value || null;
+
+  document.getElementById('btn-in').onclick = () =>
+    post('/api/pointages/clock-in', { companyId: companyId() }).catch(e => showAlert(e.message));
+  document.getElementById('btn-resume').onclick = () =>
+    post('/api/pointages/clock-in', { companyId: companyId() }).catch(e => showAlert(e.message));
+  document.getElementById('btn-pause').onclick = () =>
+    post('/api/pointages/pause').catch(e => showAlert(e.message));
+  document.getElementById('btn-out').onclick = () =>
+    post('/api/pointages/clock-out').catch(e => showAlert(e.message));
+
   document.getElementById('btn-add-company').onclick = async () => {
     const name = prompt('Nom de la nouvelle société :');
     if (!name || !name.trim()) return;
-    try {
-      const c = await api('/api/companies', 'POST', { name: name.trim() });
-      await loadCompanies(c.id);
-    } catch (e) { showAlert(e.message); }
+    try { const c = await api('/api/companies', 'POST', { name: name.trim() }); await loadCompanies(c.id); }
+    catch (e) { showAlert(e.message); }
   };
   document.getElementById('segments').addEventListener('click', async (ev) => {
     const btn = ev.target.closest('button[data-del]');

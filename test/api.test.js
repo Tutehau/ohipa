@@ -235,6 +235,31 @@ test('pointage : clock-in / clock-out et statut', async () => {
   assert.equal((await c('GET', '/api/pointages')).json.length, 1);
 });
 
+test('pointage : pause / reprise', async () => {
+  const c = await makeNormalUser('heidi', 'heidi@test.fr', 'secret1');
+
+  assert.equal((await c('POST', '/api/pointages/pause', {})).status, 400, 'pause sans être en poste refusée');
+
+  await c('POST', '/api/pointages/clock-in', {});
+  assert.equal((await c('POST', '/api/pointages/pause', {})).status, 200);
+  let st = (await c('GET', '/api/pointages/status')).json;
+  assert.equal(st.state, 'on_break', 'après pause -> en pause');
+
+  await c('POST', '/api/pointages/clock-in', {}); // reprise
+  st = (await c('GET', '/api/pointages/status')).json;
+  assert.equal(st.state, 'working', 'après reprise -> en poste');
+
+  await c('POST', '/api/pointages/clock-out', {});
+  st = (await c('GET', '/api/pointages/status')).json;
+  assert.equal(st.state, 'off', 'après départ -> hors service');
+
+  // Deux segments : un fini par pause, un par départ.
+  const list = (await c('GET', '/api/pointages')).json;
+  assert.equal(list.length, 2);
+  assert.ok(list.some(p => p.endReason === 'pause'));
+  assert.ok(list.some(p => p.endReason === 'depart'));
+});
+
 test('réconciliation : prévu vs réel par jour', async () => {
   const c = await makeNormalUser('erin', 'erin@test.fr', 'secret1');
   await c('POST', '/api/plannings', { date: '2026-07-08', startTime: '08:00', endTime: '16:00' }); // 8h prévues

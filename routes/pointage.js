@@ -9,13 +9,19 @@ const router = express.Router();
 const DURATION = "CASE WHEN clock_out IS NULL THEN 0 ELSE (julianday(clock_out) - julianday(clock_in)) * 24 END";
 
 const openSegment = db.prepare('SELECT * FROM pointages WHERE user_id = ? AND clock_out IS NULL ORDER BY clock_in DESC LIMIT 1');
+const lastSegment = db.prepare('SELECT * FROM pointages WHERE user_id = ? ORDER BY clock_in DESC LIMIT 1');
 
-// Statut courant : pointé (arrivée) ou non.
+// Statut courant : working (en poste) | on_break (en pause) | off (hors service).
 router.get('/pointages/status', isAuth, (req, res) => {
   const open = openSegment.get(req.session.userId);
-  res.json(open
-    ? { clockedIn: true, since: open.clock_in, companyId: open.company_id, id: open.id }
-    : { clockedIn: false });
+  if (open) {
+    return res.json({ state: 'working', clockedIn: true, since: open.clock_in, companyId: open.company_id, id: open.id });
+  }
+  const last = lastSegment.get(req.session.userId);
+  if (last && last.end_reason === 'pause') {
+    return res.json({ state: 'on_break', clockedIn: false, since: last.clock_out, companyId: last.company_id });
+  }
+  res.json({ state: 'off', clockedIn: false });
 });
 
 // Pointer l'arrivée : crée un segment ouvert (refuse si déjà en cours).
@@ -33,11 +39,22 @@ router.post('/pointages/clock-in', isAuth, (req, res) => {
   res.json({ id: row.id, since: row.clock_in });
 });
 
-// Pointer le départ : ferme le segment ouvert.
+// Prendre une pause : ferme le segment en cours (raison = pause) pour le
+// reprendre ensuite via une nouvelle arrivée.
+router.post('/pointages/pause', isAuth, (req, res) => {
+  const open = openSegment.get(req.session.userId);
+  if (!open) return res.status(400).json({ message: 'Aucun pointage en cours' });
+  db.prepare("UPDATE pointages SET clock_out = ?, end_reason = 'pause' WHERE id = ?")
+    .run(new Date().toISOString(), open.id);
+  res.json({ message: 'Pause enregistrée' });
+});
+
+// Pointer le départ : ferme le segment ouvert (raison = départ).
 router.post('/pointages/clock-out', isAuth, (req, res) => {
   const open = openSegment.get(req.session.userId);
   if (!open) return res.status(400).json({ message: 'Aucun pointage en cours' });
-  db.prepare('UPDATE pointages SET clock_out = ? WHERE id = ?').run(new Date().toISOString(), open.id);
+  db.prepare("UPDATE pointages SET clock_out = ?, end_reason = 'depart' WHERE id = ?")
+    .run(new Date().toISOString(), open.id);
   res.json({ message: 'Départ enregistré' });
 });
 
@@ -51,7 +68,7 @@ router.get('/pointages', isAuth, (req, res) => {
   if (req.query.to) { clauses.push("substr(p.clock_in,1,10) <= @to"); params.to = req.query.to; }
   const where = clauses.length ? 'WHERE ' + clauses.join(' AND ') : '';
   res.json(db.prepare(`
-    SELECT p.id, p.clock_in AS clockIn, p.clock_out AS clockOut,
+    SELECT p.id, p.clock_in AS clockIn, p.clock_out AS clockOut, p.end_reason AS endReason,
            p.user_id AS userId, p.company_id AS companyId,
            u.username AS username, c.name AS companyName,
            ${DURATION} AS hours
