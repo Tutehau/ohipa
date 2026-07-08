@@ -1,89 +1,63 @@
-let companies = [];
-let entriesById = {};
-let editModal = null;
+const fmtTime = (iso) => new Date(iso).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+const roundH = (n) => Math.round((n || 0) * 100) / 100;
 
-function companyOptions(selectedId) {
-  const opts = ['<option value="">— Aucune —</option>'].concat(
-    companies.map(c =>
-      `<option value="${escapeHtml(c.id)}"${c.id === selectedId ? ' selected' : ''}>${escapeHtml(c.name)}</option>`)
-  );
-  return opts.join('');
+function fmtDay(ymd) {
+  return new Date(ymd + 'T00:00:00').toLocaleDateString(undefined, {
+    weekday: 'long', day: '2-digit', month: 'long', year: 'numeric',
+  });
 }
 
-function renderRows(entries) {
-  const table = document.getElementById('entries-table');
-  entriesById = {};
-  if (!entries.length) {
-    table.innerHTML = `<tr><td colspan="5" class="text-center text-muted py-4">
-      <i class="bi bi-inbox me-1"></i>Aucune saisie pour le moment.</td></tr>`;
+async function load() {
+  const all = await api('/api/pointages');
+  const box = document.getElementById('history');
+
+  if (!all.length) {
+    box.innerHTML = `<div class="card p-5 shadow-sm text-center text-muted">
+      <i class="bi bi-inbox fs-1 mb-2"></i><div>Aucun pointage pour le moment.</div></div>`;
     return;
   }
-  table.innerHTML = entries.map(e => {
-    entriesById[e.id] = e;
-    return `<tr>
-      <td>${escapeHtml(new Date(e.date).toLocaleDateString())}</td>
-      <td>${escapeHtml(e.companyName || 'N/A')}</td>
-      <td>${escapeHtml(e.hours)}h</td>
-      <td>${escapeHtml(e.description || '')}</td>
-      <td class="text-end text-nowrap">
-        <button class="btn btn-sm btn-outline-light" data-action="edit" data-id="${escapeHtml(e.id)}" title="Modifier">
-          <i class="bi bi-pencil"></i></button>
-        <button class="btn btn-sm btn-outline-danger" data-action="delete" data-id="${escapeHtml(e.id)}" title="Supprimer">
-          <i class="bi bi-trash"></i></button>
-      </td>
-    </tr>`;
-  }).join('');
-}
 
-async function reload() {
-  const entries = await api('/api/entries');
-  renderRows(entries);
+  // Regroupement par jour local de travail.
+  const groups = {};
+  for (const p of all) (groups[p.workDate] ||= []).push(p);
+  const days = Object.keys(groups).sort((a, b) => (a < b ? 1 : -1));
+
+  box.innerHTML = days.map(day => {
+    const segs = groups[day].slice().sort((a, b) => new Date(a.clockIn) - new Date(b.clockIn));
+    const total = segs.reduce((s, p) => s + (p.clockOut ? p.hours : 0), 0);
+    const rows = segs.map(p => {
+      const done = !!p.clockOut;
+      const tag = p.endReason === 'pause' ? '<span class="badge bg-warning text-dark ms-2"><i class="bi bi-cup-hot"></i> pause</span>'
+        : p.endReason === 'oubli' ? '<span class="badge bg-danger ms-2" title="Départ non pointé"><i class="bi bi-exclamation-triangle"></i> oubli</span>'
+        : (p.endReason === 'depart' ? '<span class="badge bg-secondary ms-2">départ</span>' : '');
+      return `<li class="list-group-item d-flex justify-content-between align-items-center flex-wrap gap-2">
+        <span><i class="bi bi-arrow-right-short text-success"></i>${escapeHtml(fmtTime(p.clockIn))}
+          <i class="bi bi-arrow-right-short text-danger ms-2"></i>${done ? escapeHtml(fmtTime(p.clockOut)) : '<span class="text-success">en cours…</span>'}
+          <small class="text-muted ms-2">${escapeHtml(p.companyName || '')}</small>${tag}</span>
+        <span class="d-flex align-items-center gap-2"><span class="fw-semibold">${done ? roundH(p.hours) + 'h' : '—'}</span>
+          <button class="btn btn-sm btn-outline-danger" data-del="${escapeHtml(p.id)}" title="Supprimer"><i class="bi bi-trash"></i></button></span>
+      </li>`;
+    }).join('');
+    return `<div class="card shadow-sm mb-3">
+      <div class="card-header d-flex justify-content-between align-items-center bg-transparent border-0 pt-3">
+        <h6 class="mb-0 text-capitalize"><i class="bi bi-calendar3 me-2"></i>${escapeHtml(fmtDay(day))}</h6>
+        <span class="badge bg-primary fs-6">${roundH(total)}h</span>
+      </div>
+      <ul class="list-group list-group-flush">${rows}</ul>
+    </div>`;
+  }).join('');
 }
 
 (async () => {
   const me = await requireAuth();
   if (!me) return;
   renderNav(me, 'history');
-  editModal = new bootstrap.Modal(document.getElementById('edit-modal'));
+  await load();
 
-  companies = await api('/api/companies');
-  await reload();
-
-  // Délégation d'événements sur les boutons d'action.
-  document.getElementById('entries-table').addEventListener('click', async (ev) => {
-    const btn = ev.target.closest('button[data-action]');
-    if (!btn) return;
-    const id = btn.dataset.id;
-    const entry = entriesById[id];
-
-    if (btn.dataset.action === 'edit') {
-      document.getElementById('edit-id').value = id;
-      document.getElementById('edit-company').innerHTML = companyOptions(entry.companyId);
-      document.getElementById('edit-hours').value = entry.hours;
-      document.getElementById('edit-desc').value = entry.description || '';
-      editModal.show();
-    } else if (btn.dataset.action === 'delete') {
-      if (!confirm('Supprimer cette saisie ?')) return;
-      try {
-        await api('/api/entries/' + id, 'DELETE');
-        showAlert('Saisie supprimée.', 'success');
-        await reload();
-      } catch (err) { showAlert(err.message); }
-    }
+  document.getElementById('history').addEventListener('click', async (ev) => {
+    const btn = ev.target.closest('button[data-del]');
+    if (!btn || !confirm('Supprimer ce pointage ?')) return;
+    try { await api('/api/pointages/' + btn.dataset.del, 'DELETE'); await load(); }
+    catch (e) { showAlert(e.message); }
   });
-
-  document.getElementById('edit-form').onsubmit = async (ev) => {
-    ev.preventDefault();
-    const id = document.getElementById('edit-id').value;
-    try {
-      await api('/api/entries/' + id, 'PUT', {
-        companyId: document.getElementById('edit-company').value,
-        hours: document.getElementById('edit-hours').value,
-        description: document.getElementById('edit-desc').value,
-      });
-      editModal.hide();
-      showAlert('Saisie mise à jour.', 'success');
-      await reload();
-    } catch (err) { showAlert(err.message); }
-  };
 })();

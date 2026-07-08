@@ -11,7 +11,6 @@ const SqliteStore = require('better-sqlite3-session-store')(session);
 const db = require('./db');
 
 const authRoutes = require('./routes/auth');
-const entriesRoutes = require('./routes/entries');
 const adminRoutes = require('./routes/admin');
 const reportsRoutes = require('./routes/reports');
 const planningRoutes = require('./routes/planning');
@@ -80,7 +79,6 @@ function createApp() {
 
   // Routes API
   app.use('/api', authRoutes);
-  app.use('/api', entriesRoutes);
   app.use('/api', adminRoutes);
   app.use('/api', reportsRoutes);
   app.use('/api', planningRoutes);

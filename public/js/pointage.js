@@ -120,11 +120,13 @@ async function refreshAll() { await refreshStatus(); await loadToday(); }
 
   const post = async (url, body) => { await api(url, 'POST', body); await refreshAll(); };
   const companyId = () => document.getElementById('company-select').value || null;
+  // On envoie la date locale du navigateur : le jour de travail est calculé
+  // dans le fuseau de l'utilisateur, où qu'il soit dans le monde.
+  const clockIn = () => post('/api/pointages/clock-in', { companyId: companyId(), date: todayStr() })
+    .catch(e => showAlert(e.message));
 
-  document.getElementById('btn-in').onclick = () =>
-    post('/api/pointages/clock-in', { companyId: companyId() }).catch(e => showAlert(e.message));
-  document.getElementById('btn-resume').onclick = () =>
-    post('/api/pointages/clock-in', { companyId: companyId() }).catch(e => showAlert(e.message));
+  document.getElementById('btn-in').onclick = clockIn;
+  document.getElementById('btn-resume').onclick = clockIn;
   document.getElementById('btn-pause').onclick = () =>
     post('/api/pointages/pause').catch(e => showAlert(e.message));
   document.getElementById('btn-out').onclick = () =>

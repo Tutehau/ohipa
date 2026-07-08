@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Mon historique | Ohipa</title>
+  <title>Historique | Ohipa</title>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
   <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
   <link href="css/style.css" rel="stylesheet">
@@ -13,64 +13,15 @@
   <nav id="topnav" class="navbar navbar-expand-lg navbar-dark bg-dark mb-4"></nav>
   <div class="container">
     <div class="d-flex justify-content-between align-items-center mb-4">
-      <h2 class="mb-0"><i class="bi bi-list-ul me-2"></i>Mon historique</h2>
-      <a href="entry.html" class="btn btn-primary">
-        <i class="bi bi-plus-lg me-1"></i>Nouvelle saisie
+      <h2 class="mb-0"><i class="bi bi-list-ul me-2"></i>Historique des pointages</h2>
+      <a href="pointage.html" class="btn btn-primary">
+        <i class="bi bi-fingerprint me-1"></i>Pointer
       </a>
     </div>
     <div id="alert" class="d-none" role="alert"></div>
-    <div class="card shadow-sm">
-      <div class="table-responsive">
-        <table class="table table-hover mb-0 align-middle">
-          <thead>
-            <tr>
-              <th><i class="bi bi-calendar3 me-1"></i>Date</th>
-              <th><i class="bi bi-building me-1"></i>Entreprise</th>
-              <th><i class="bi bi-clock me-1"></i>Heures</th>
-              <th><i class="bi bi-card-text me-1"></i>Description</th>
-              <th class="text-end"><i class="bi bi-gear me-1"></i>Actions</th>
-            </tr>
-          </thead>
-          <tbody id="entries-table"></tbody>
-        </table>
-      </div>
-    </div>
+    <div id="history"></div>
   </div>
 
-  <!-- Modale d'édition -->
-  <div class="modal fade" id="edit-modal" tabindex="-1">
-    <div class="modal-dialog">
-      <div class="modal-content card">
-        <div class="modal-header border-0">
-          <h5 class="modal-title"><i class="bi bi-pencil me-2"></i>Modifier la saisie</h5>
-          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
-        </div>
-        <form id="edit-form">
-          <div class="modal-body">
-            <input type="hidden" id="edit-id">
-            <div class="mb-3">
-              <label class="form-label">Entreprise</label>
-              <select id="edit-company" class="form-select"></select>
-            </div>
-            <div class="mb-3">
-              <label class="form-label">Heures</label>
-              <input type="number" id="edit-hours" class="form-control" step="0.25" min="0.25" max="24" required>
-            </div>
-            <div class="mb-3">
-              <label class="form-label">Description</label>
-              <textarea id="edit-desc" class="form-control" rows="3" maxlength="500"></textarea>
-            </div>
-          </div>
-          <div class="modal-footer border-0">
-            <button type="button" class="btn btn-outline-light" data-bs-dismiss="modal">Annuler</button>
-            <button type="submit" class="btn btn-primary"><i class="bi bi-save me-1"></i>Enregistrer</button>
-          </div>
-        </form>
-      </div>
-    </div>
-  </div>
-
-  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
   <script src="js/api.js"></script>
   <script src="js/nav.js"></script>
   <script src="js/history.js"></script>

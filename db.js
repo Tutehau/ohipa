@@ -77,8 +77,11 @@ function ensureColumn(table, column, definition) {
   if (!exists) db.exec(`ALTER TABLE ${table} ADD COLUMN ${definition}`);
 }
 ensureColumn('companies', 'created_by', 'created_by TEXT REFERENCES users(id) ON DELETE SET NULL');
-// Raison de fin d'un segment de pointage : NULL (en cours) | 'pause' | 'depart'.
+// Raison de fin d'un segment de pointage : NULL (en cours) | 'pause' | 'depart' | 'oubli'.
 ensureColumn('pointages', 'end_reason', 'end_reason TEXT');
+// Date locale de travail (YYYY-MM-DD dans le fuseau de l'utilisateur), fixée au
+// clock-in. Indispensable pour comparer prévu/réel au bon jour à l'échelle mondiale.
+ensureColumn('pointages', 'work_date', 'work_date TEXT');
 
 // --- Migration ponctuelle depuis l'ancien stockage JSON ---------------------
 // Si des fichiers *.json existent et que la table users est vide, on importe

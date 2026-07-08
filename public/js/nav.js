@@ -9,7 +9,6 @@ function renderNav(me, active) {
     { key: 'dashboard', href: 'dashboard.html', icon: 'bi-speedometer2', label: 'Tableau de bord' },
     { key: 'pointage', href: 'pointage.html', icon: 'bi-fingerprint', label: 'Pointage' },
     { key: 'planning', href: 'planning.html', icon: 'bi-calendar-week', label: 'Planning' },
-    { key: 'entry', href: 'entry.html', icon: 'bi-clock-history', label: 'Saisir' },
     { key: 'history', href: 'history.html', icon: 'bi-list-ul', label: 'Historique' },
     { key: 'reports', href: 'reports.html', icon: 'bi-bar-chart-line', label: 'Rapports' },
   ];

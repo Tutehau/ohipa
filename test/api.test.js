@@ -66,35 +66,6 @@ test('setup admin, puis login', async () => {
   assert.equal(r.json.role, 'admin');
 });
 
-test('CRUD entreprise + entrée, et validation', async () => {
-  const c = makeClient();
-  await c('POST', '/api/login', { username: 'boss', password: 'pass123' });
-
-  let r = await c('POST', '/api/companies', { name: 'ACME' });
-  assert.equal(r.status, 200);
-  const companyId = r.json.id;
-
-  r = await c('POST', '/api/entries', { companyId, hours: '99', description: 'x' });
-  assert.equal(r.status, 400, 'heures hors bornes rejetées');
-
-  r = await c('POST', '/api/entries', { companyId, hours: '7.5', description: 'dev' });
-  assert.equal(r.status, 200);
-  const entryId = r.json.id;
-
-  r = await c('PUT', '/api/entries/' + entryId, { companyId, hours: '8', description: 'dev v2' });
-  assert.equal(r.status, 200);
-
-  r = await c('GET', '/api/entries');
-  assert.equal(r.json[0].hours, 8);
-  assert.equal(r.json[0].description, 'dev v2');
-
-  r = await c('DELETE', '/api/entries/' + entryId);
-  assert.equal(r.status, 200);
-
-  r = await c('GET', '/api/entries');
-  assert.equal(r.json.length, 0);
-});
-
 test('inscription -> activation -> login', async () => {
   const c = makeClient();
   let r = await c('POST', '/api/register', { username: 'alice', email: 'alice@test.fr', password: 'secret1' });
@@ -122,22 +93,13 @@ test('isolation des rôles : un user ne peut pas administrer', async () => {
   assert.equal((await c('POST', '/api/companies', { name: 'Ma société' })).status, 200);
 });
 
-test('un user ne voit que ses propres entrées', async () => {
-  const boss = makeClient();
-  await boss('POST', '/api/login', { username: 'boss', password: 'pass123' });
-  const companyId = (await boss('POST', '/api/companies', { name: 'Client' })).json.id;
-  await boss('POST', '/api/entries', { companyId, hours: '3', description: 'boss' });
-
-  const alice = makeClient();
-  await alice('POST', '/api/login', { username: 'alice', password: 'secret1' });
-  await alice('POST', '/api/entries', { companyId, hours: '2', description: 'alice' });
-
-  const aliceEntries = (await alice('GET', '/api/entries')).json;
-  assert.equal(aliceEntries.length, 1);
-  assert.equal(aliceEntries[0].description, 'alice');
-
-  const bossEntries = (await boss('GET', '/api/entries')).json;
-  assert.ok(bossEntries.length >= 2, 'admin voit toutes les entrées');
+test('pointage : réel comptabilisé dans les rapports', async () => {
+  const c = await makeNormalUser('ivan', 'ivan@test.fr', 'secret1');
+  await c('POST', '/api/pointages/clock-in', { date: '2026-07-08' });
+  await c('POST', '/api/pointages/clock-out', {});
+  const rep = (await c('GET', '/api/reports')).json;
+  assert.equal(typeof rep.totalHours, 'number');
+  assert.equal(rep.count, 1, 'un segment terminé compté comme réel');
 });
 
 test('reset password + garde du dernier admin', async () => {
@@ -208,8 +170,9 @@ test('planning : CRUD et calcul des heures', async () => {
   assert.equal(r.json.length, 1);
   assert.equal(r.json[0].hours, 8, '08:00->16:00 = 8h');
 
-  // Horaires invalides refusés
-  assert.equal((await c('POST', '/api/plannings', { date: '2026-07-08', startTime: '18:00', endTime: '09:00' })).status, 400);
+  // Horaires invalides refusés (égaux, ou format incorrect)
+  assert.equal((await c('POST', '/api/plannings', { date: '2026-07-08', startTime: '09:00', endTime: '09:00' })).status, 400);
+  assert.equal((await c('POST', '/api/plannings', { date: '2026-07-08', startTime: '25:00', endTime: '09:00' })).status, 400);
 
   r = await c('PUT', '/api/plannings/' + id, { companyId, date: '2026-07-08', startTime: '09:00', endTime: '17:00' });
   assert.equal(r.status, 200);
@@ -275,6 +238,41 @@ test('isolation : un user ne voit pas le planning des autres', async () => {
   await f('POST', '/api/plannings', { date: '2026-07-09', startTime: '08:00', endTime: '12:00' });
   const g = await makeNormalUser('grace', 'grace@test.fr', 'secret1');
   assert.equal((await g('GET', '/api/plannings')).json.length, 0, 'grace ne voit pas le planning de frank');
+});
+
+test('validation : companyId inexistant rejeté (400, pas 500)', async () => {
+  const c = await makeNormalUser('ivy', 'ivy@test.fr', 'secret1');
+  assert.equal((await c('POST', '/api/plannings', { companyId: 'nope', date: '2026-07-08', startTime: '08:00', endTime: '16:00' })).status, 400);
+  assert.equal((await c('POST', '/api/pointages/clock-in', { companyId: 'nope' })).status, 400);
+});
+
+test('planning de nuit : fin < début = passage de minuit', async () => {
+  const c = await makeNormalUser('jack', 'jack@test.fr', 'secret1');
+  const r = await c('POST', '/api/plannings', { date: '2026-07-08', startTime: '23:00', endTime: '07:00' });
+  assert.equal(r.status, 200);
+  assert.equal((await c('GET', '/api/plannings')).json[0].hours, 8, '23:00 -> 07:00 = 8h');
+});
+
+test('fuseau : réconciliation alignée sur la date locale du pointage', async () => {
+  const c = await makeNormalUser('kate', 'kate@test.fr', 'secret1');
+  await c('POST', '/api/plannings', { date: '2026-07-08', startTime: '08:00', endTime: '16:00' });
+  // Le client déclare travailler le 2026-07-08 (sa date locale), quelle que soit l'heure UTC.
+  await c('POST', '/api/pointages/clock-in', { date: '2026-07-08' });
+  await c('POST', '/api/pointages/clock-out', {});
+  const rec = (await c('GET', '/api/reconciliation?from=2026-07-08&to=2026-07-08')).json;
+  assert.equal(rec.days.length, 1, 'prévu et réel tombent sur le même jour local');
+  assert.equal(rec.days[0].planned, 8);
+});
+
+test('oubli de départ : clock-in d\'un nouveau jour auto-clôture le segment ouvert', async () => {
+  const c = await makeNormalUser('liam', 'liam@test.fr', 'secret1');
+  await c('POST', '/api/pointages/clock-in', { date: '2026-07-08' }); // oublie le départ
+  assert.equal((await c('GET', '/api/pointages/status')).json.state, 'working');
+
+  const r = await c('POST', '/api/pointages/clock-in', { date: '2026-07-09' }); // nouveau jour
+  assert.equal(r.status, 200, 'clock-in du lendemain accepté');
+  const list = (await c('GET', '/api/pointages')).json;
+  assert.ok(list.some(p => p.endReason === 'oubli'), 'ancien segment marqué oubli');
 });
 
 // Utilitaire : récupère un cookie de session pour un appel fetch direct.
