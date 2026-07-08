@@ -14,6 +14,8 @@ const authRoutes = require('./routes/auth');
 const entriesRoutes = require('./routes/entries');
 const adminRoutes = require('./routes/admin');
 const reportsRoutes = require('./routes/reports');
+const planningRoutes = require('./routes/planning');
+const pointageRoutes = require('./routes/pointage');
 
 const PORT = process.env.PORT || 3000;
 
@@ -81,6 +83,8 @@ function createApp() {
   app.use('/api', entriesRoutes);
   app.use('/api', adminRoutes);
   app.use('/api', reportsRoutes);
+  app.use('/api', planningRoutes);
+  app.use('/api', pointageRoutes);
 
   // Fichiers statiques (front)
   app.use(express.static(path.join(__dirname, 'public')));

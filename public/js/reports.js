@@ -58,6 +58,45 @@ async function refresh() {
   renderChart(data.byDay || []);
   renderList(document.getElementById('by-company'), data.byCompany);
   if (data.byUser) renderList(document.getElementById('by-user'), data.byUser);
+
+  await renderReconciliation();
+}
+
+// Comparaison prévu (planning) / réel (pointage). Filtres période + utilisateur.
+async function renderReconciliation() {
+  const p = new URLSearchParams();
+  const from = document.getElementById('f-from').value;
+  const to = document.getElementById('f-to').value;
+  const userSel = document.getElementById('f-user');
+  if (from) p.set('from', from);
+  if (to) p.set('to', to);
+  if (userSel && userSel.value) p.set('userId', userSel.value);
+  const qs = p.toString();
+  const rec = await api('/api/reconciliation' + (qs ? '?' + qs : ''));
+
+  const h = (n) => (Math.round((n || 0) * 100) / 100) + 'h';
+  const signed = (n) => (n > 0 ? '+' : '') + h(n);
+  document.getElementById('rec-planned').textContent = h(rec.totals.planned);
+  document.getElementById('rec-real').textContent = h(rec.totals.real);
+  document.getElementById('rec-ecart').textContent = signed(rec.totals.ecart);
+  document.getElementById('rec-ecart-badge').className =
+    'badge fs-6 ' + (rec.totals.ecart < 0 ? 'bg-warning text-dark' : 'bg-success');
+
+  const tbody = document.getElementById('rec-rows');
+  if (!rec.days.length) {
+    tbody.innerHTML = `<tr><td colspan="4" class="text-center text-muted py-3"><i class="bi bi-inbox me-1"></i>Aucune donnée sur la période.</td></tr>`;
+    return;
+  }
+  tbody.innerHTML = rec.days.map(d => {
+    const color = d.ecart < 0 ? 'text-warning' : (d.ecart > 0 ? 'text-success' : 'text-muted');
+    const day = new Date(d.day + 'T00:00:00').toLocaleDateString(undefined, { weekday: 'short', day: '2-digit', month: '2-digit' });
+    return `<tr>
+      <td>${escapeHtml(day)}</td>
+      <td class="text-end">${escapeHtml(h(d.planned))}</td>
+      <td class="text-end">${escapeHtml(h(d.real))}</td>
+      <td class="text-end fw-semibold ${color}">${escapeHtml(signed(d.ecart))}</td>
+    </tr>`;
+  }).join('');
 }
 
 (async () => {

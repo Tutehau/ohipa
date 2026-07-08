@@ -77,6 +77,24 @@
         </div>
       </div>
     </div>
+
+    <!-- Prévu (planning) vs Réel (pointage) -->
+    <div class="card p-4 mb-5 shadow-sm">
+      <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+        <h5 class="mb-0"><i class="bi bi-clipboard-check me-2"></i>Prévu vs Réel</h5>
+        <div class="d-flex gap-2">
+          <span class="badge bg-secondary fs-6">Prévu <b id="rec-planned">0h</b></span>
+          <span class="badge bg-primary fs-6">Réel <b id="rec-real">0h</b></span>
+          <span class="badge fs-6" id="rec-ecart-badge">Écart <b id="rec-ecart">0h</b></span>
+        </div>
+      </div>
+      <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0">
+          <thead><tr><th>Jour</th><th class="text-end">Prévu</th><th class="text-end">Réel</th><th class="text-end">Écart</th></tr></thead>
+          <tbody id="rec-rows"></tbody>
+        </table>
+      </div>
+    </div>
   </div>
 
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>

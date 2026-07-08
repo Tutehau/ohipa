@@ -116,8 +116,10 @@ test('isolation des rôles : un user ne peut pas administrer', async () => {
   await c('POST', '/api/login', { username: 'alice', password: 'secret1' });
 
   assert.equal((await c('GET', '/api/admin/users')).status, 403);
-  assert.equal((await c('POST', '/api/companies', { name: 'Hack' })).status, 403);
   assert.equal((await c('GET', '/api/admin/stats')).status, 403);
+  assert.equal((await c('POST', '/api/admin/invite', { username: 'x', password: 'y' })).status, 403);
+  // La création de société est en self-service : autorisée à un user normal.
+  assert.equal((await c('POST', '/api/companies', { name: 'Ma société' })).status, 200);
 });
 
 test('un user ne voit que ses propres entrées', async () => {
@@ -175,6 +177,79 @@ test('reports + export CSV', async () => {
   });
   assert.equal(csv.status, 200);
   assert.match(csv.headers.get('content-type'), /csv/);
+});
+
+// Prépare un utilisateur normal (register -> activate -> login) et renvoie son client.
+async function makeNormalUser(username, email, password) {
+  const c = makeClient();
+  await c('POST', '/api/register', { username, email, password });
+  const token = db.prepare('SELECT activation_token AS t FROM users WHERE email = ?').get(email).t;
+  await c('GET', '/api/activate?token=' + token);
+  await c('POST', '/api/login', { username, password });
+  return c;
+}
+
+test('self-service : un utilisateur normal crée sa propre société', async () => {
+  const bob = await makeNormalUser('bob', 'bob@test.fr', 'secret1');
+  const r = await bob('POST', '/api/companies', { name: 'Boite de Bob' });
+  assert.equal(r.status, 200, 'un user peut créer une société');
+  assert.ok(r.json.id);
+});
+
+test('planning : CRUD et calcul des heures', async () => {
+  const c = await makeNormalUser('carol', 'carol@test.fr', 'secret1');
+  const companyId = (await c('POST', '/api/companies', { name: 'ACME Carol' })).json.id;
+
+  let r = await c('POST', '/api/plannings', { companyId, date: '2026-07-08', startTime: '08:00', endTime: '16:00' });
+  assert.equal(r.status, 200);
+  const id = r.json.id;
+
+  r = await c('GET', '/api/plannings');
+  assert.equal(r.json.length, 1);
+  assert.equal(r.json[0].hours, 8, '08:00->16:00 = 8h');
+
+  // Horaires invalides refusés
+  assert.equal((await c('POST', '/api/plannings', { date: '2026-07-08', startTime: '18:00', endTime: '09:00' })).status, 400);
+
+  r = await c('PUT', '/api/plannings/' + id, { companyId, date: '2026-07-08', startTime: '09:00', endTime: '17:00' });
+  assert.equal(r.status, 200);
+  assert.equal((await c('GET', '/api/plannings')).json[0].hours, 8);
+
+  assert.equal((await c('DELETE', '/api/plannings/' + id)).status, 200);
+  assert.equal((await c('GET', '/api/plannings')).json.length, 0);
+});
+
+test('pointage : clock-in / clock-out et statut', async () => {
+  const c = await makeNormalUser('dave', 'dave@test.fr', 'secret1');
+
+  assert.equal((await c('GET', '/api/pointages/status')).json.clockedIn, false);
+
+  assert.equal((await c('POST', '/api/pointages/clock-in', {})).status, 200);
+  assert.equal((await c('GET', '/api/pointages/status')).json.clockedIn, true);
+  assert.equal((await c('POST', '/api/pointages/clock-in', {})).status, 400, 'double arrivée refusée');
+
+  assert.equal((await c('POST', '/api/pointages/clock-out', {})).status, 200);
+  assert.equal((await c('GET', '/api/pointages/status')).json.clockedIn, false);
+  assert.equal((await c('POST', '/api/pointages/clock-out', {})).status, 400, 'départ sans arrivée refusé');
+
+  assert.equal((await c('GET', '/api/pointages')).json.length, 1);
+});
+
+test('réconciliation : prévu vs réel par jour', async () => {
+  const c = await makeNormalUser('erin', 'erin@test.fr', 'secret1');
+  await c('POST', '/api/plannings', { date: '2026-07-08', startTime: '08:00', endTime: '16:00' }); // 8h prévues
+
+  const r = await c('GET', '/api/reconciliation?from=2026-07-08&to=2026-07-08');
+  assert.equal(r.status, 200);
+  assert.equal(r.json.totals.planned, 8);
+  assert.equal(r.json.days[0].ecart, r.json.days[0].real - 8);
+});
+
+test('isolation : un user ne voit pas le planning des autres', async () => {
+  const f = await makeNormalUser('frank', 'frank@test.fr', 'secret1');
+  await f('POST', '/api/plannings', { date: '2026-07-09', startTime: '08:00', endTime: '12:00' });
+  const g = await makeNormalUser('grace', 'grace@test.fr', 'secret1');
+  assert.equal((await g('GET', '/api/plannings')).json.length, 0, 'grace ne voit pas le planning de frank');
 });
 
 // Utilitaire : récupère un cookie de session pour un appel fetch direct.

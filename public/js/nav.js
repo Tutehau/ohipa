@@ -1,17 +1,27 @@
 // Navigation des pages utilisateur.
-// - Desktop (>=992px) : barre supérieure classique avec tous les liens.
+// - Desktop (>=992px) : barre supérieure avec tous les liens.
 // - Mobile (<992px)   : barre supérieure réduite (logo + déconnexion) +
-//                       bottom navbar fixe (icônes + libellés courts).
+//                       bottom navbar fixe (5 essentiels).
 // `active` = identifiant de la page courante pour surligner le bon lien.
 function renderNav(me, active) {
+  // Liens complets (barre supérieure desktop).
   const links = [
-    { key: 'dashboard', href: 'dashboard.html', icon: 'bi-speedometer2', label: 'Tableau de bord', short: 'Accueil' },
-    { key: 'entry', href: 'entry.html', icon: 'bi-clock-history', label: 'Saisir des heures', short: 'Saisir' },
-    { key: 'history', href: 'history.html', icon: 'bi-list-ul', label: 'Mon historique', short: 'Historique' },
-    { key: 'reports', href: 'reports.html', icon: 'bi-bar-chart-line', label: 'Rapports', short: 'Rapports' },
+    { key: 'dashboard', href: 'dashboard.html', icon: 'bi-speedometer2', label: 'Tableau de bord' },
+    { key: 'pointage', href: 'pointage.html', icon: 'bi-fingerprint', label: 'Pointage' },
+    { key: 'planning', href: 'planning.html', icon: 'bi-calendar-week', label: 'Planning' },
+    { key: 'entry', href: 'entry.html', icon: 'bi-clock-history', label: 'Saisir' },
+    { key: 'history', href: 'history.html', icon: 'bi-list-ul', label: 'Historique' },
+    { key: 'reports', href: 'reports.html', icon: 'bi-bar-chart-line', label: 'Rapports' },
+  ];
+  // Sous-ensemble affiché dans la bottom navbar mobile (labels courts).
+  const bottomKeys = [
+    { key: 'dashboard', href: 'dashboard.html', icon: 'bi-speedometer2', short: 'Accueil' },
+    { key: 'pointage', href: 'pointage.html', icon: 'bi-fingerprint', short: 'Pointage' },
+    { key: 'planning', href: 'planning.html', icon: 'bi-calendar-week', short: 'Planning' },
+    { key: 'reports', href: 'reports.html', icon: 'bi-bar-chart-line', short: 'Rapports' },
   ];
 
-  // --- Barre supérieure (liens complets visibles à partir de lg) ---
+  // --- Barre supérieure (liens complets, visibles à partir de lg) ---
   const items = links.map(l => `
     <li class="nav-item">
       <a class="nav-link ${l.key === active ? 'active fw-semibold' : ''} text-white" href="${l.href}">
@@ -49,7 +59,7 @@ function renderNav(me, active) {
     </div>`;
 
   // --- Bottom navbar (mobile uniquement) ---
-  const bnItems = links.map(l => `
+  const bnItems = bottomKeys.map(l => `
     <a class="bn-item ${l.key === active ? 'active' : ''}" href="${l.href}">
       <i class="bi ${l.icon}"></i><span>${l.short}</span>
     </a>`);

@@ -13,13 +13,27 @@ router.get('/companies', isAuth, (req, res) => {
   res.json(db.prepare('SELECT id, name FROM companies ORDER BY name').all());
 });
 
-router.post('/companies', isAuth, isAdmin, (req, res) => {
+// Création de société ouverte à tout utilisateur connecté (self-service).
+router.post('/companies', isAuth, (req, res) => {
   const name = (req.body.name || '').trim();
   if (!name) return res.status(400).json({ message: 'Nom requis' });
-  const company = { id: crypto.randomUUID(), name, created_at: new Date().toISOString() };
-  db.prepare('INSERT INTO companies (id, name, created_at) VALUES (@id, @name, @created_at)').run(company);
+  const company = {
+    id: crypto.randomUUID(), name,
+    created_by: req.session.userId, created_at: new Date().toISOString(),
+  };
+  db.prepare('INSERT INTO companies (id, name, created_by, created_at) VALUES (@id, @name, @created_by, @created_at)').run(company);
   res.json({ id: company.id, name: company.name });
 });
+
+// Renommage/suppression : autorisé au créateur de la société ou à un admin.
+function canManageCompany(req, res) {
+  const c = db.prepare('SELECT * FROM companies WHERE id = ?').get(req.params.id);
+  if (!c) { res.status(404).json({ message: 'Entreprise introuvable' }); return null; }
+  if (req.session.role !== 'admin' && c.created_by !== req.session.userId) {
+    res.status(403).json({ message: 'Action réservée au créateur' }); return null;
+  }
+  return c;
+}
 
 // --- Utilisateurs (admin) --------------------------------------------------
 router.get('/admin/users', isAuth, isAdmin, (req, res) => {
@@ -64,18 +78,18 @@ router.get('/admin/stats', isAuth, isAdmin, (req, res) => {
 });
 
 // --- Modification / suppression d'entreprise -------------------------------
-router.put('/companies/:id', isAuth, isAdmin, (req, res) => {
+router.put('/companies/:id', isAuth, (req, res) => {
+  if (!canManageCompany(req, res)) return;
   const name = (req.body.name || '').trim();
   if (!name) return res.status(400).json({ message: 'Nom requis' });
-  const r = db.prepare('UPDATE companies SET name = ? WHERE id = ?').run(name, req.params.id);
-  if (!r.changes) return res.status(404).json({ message: 'Entreprise introuvable' });
+  db.prepare('UPDATE companies SET name = ? WHERE id = ?').run(name, req.params.id);
   res.json({ message: 'Entreprise renommée' });
 });
 
-router.delete('/companies/:id', isAuth, isAdmin, (req, res) => {
+router.delete('/companies/:id', isAuth, (req, res) => {
+  if (!canManageCompany(req, res)) return;
   // Les entrées liées gardent leur historique (company_id passe à NULL, cf. FK).
-  const r = db.prepare('DELETE FROM companies WHERE id = ?').run(req.params.id);
-  if (!r.changes) return res.status(404).json({ message: 'Entreprise introuvable' });
+  db.prepare('DELETE FROM companies WHERE id = ?').run(req.params.id);
   res.json({ message: 'Entreprise supprimée' });
 });
 

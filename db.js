@@ -45,7 +45,38 @@ db.exec(`
   );
 
   CREATE INDEX IF NOT EXISTS idx_entries_user ON time_entries(user_id);
+
+  -- Planning (le prévu) : créneaux planifiés par l'utilisateur, par société.
+  CREATE TABLE IF NOT EXISTS plannings (
+    id          TEXT PRIMARY KEY,
+    user_id     TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    company_id  TEXT REFERENCES companies(id) ON DELETE SET NULL,
+    date        TEXT NOT NULL,          -- YYYY-MM-DD
+    start_time  TEXT NOT NULL,          -- HH:MM
+    end_time    TEXT NOT NULL,          -- HH:MM
+    note        TEXT,
+    created_at  TEXT NOT NULL
+  );
+  CREATE INDEX IF NOT EXISTS idx_plannings_user_date ON plannings(user_id, date);
+
+  -- Pointage (le réel) : segments horodatés arrivée -> départ.
+  CREATE TABLE IF NOT EXISTS pointages (
+    id          TEXT PRIMARY KEY,
+    user_id     TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    company_id  TEXT REFERENCES companies(id) ON DELETE SET NULL,
+    clock_in    TEXT NOT NULL,          -- ISO datetime
+    clock_out   TEXT,                   -- ISO datetime (NULL = pointage en cours)
+    created_at  TEXT NOT NULL
+  );
+  CREATE INDEX IF NOT EXISTS idx_pointages_user ON pointages(user_id, clock_in);
 `);
+
+// Ajout rétro-compatible de companies.created_by (bases déjà existantes).
+const hasCreatedBy = db.prepare("PRAGMA table_info(companies)").all()
+  .some((c) => c.name === 'created_by');
+if (!hasCreatedBy) {
+  db.exec("ALTER TABLE companies ADD COLUMN created_by TEXT REFERENCES users(id) ON DELETE SET NULL");
+}
 
 // --- Migration ponctuelle depuis l'ancien stockage JSON ---------------------
 // Si des fichiers *.json existent et que la table users est vide, on importe
