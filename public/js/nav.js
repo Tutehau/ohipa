@@ -1,13 +1,17 @@
-// Construit la barre de navigation supérieure des pages utilisateur.
+// Navigation des pages utilisateur.
+// - Desktop (>=992px) : barre supérieure classique avec tous les liens.
+// - Mobile (<992px)   : barre supérieure réduite (logo + déconnexion) +
+//                       bottom navbar fixe (icônes + libellés courts).
 // `active` = identifiant de la page courante pour surligner le bon lien.
 function renderNav(me, active) {
   const links = [
-    { key: 'dashboard', href: 'dashboard.html', icon: 'bi-speedometer2', label: 'Tableau de bord' },
-    { key: 'entry', href: 'entry.html', icon: 'bi-clock-history', label: 'Saisir des heures' },
-    { key: 'history', href: 'history.html', icon: 'bi-list-ul', label: 'Mon historique' },
-    { key: 'reports', href: 'reports.html', icon: 'bi-bar-chart-line', label: 'Rapports' },
+    { key: 'dashboard', href: 'dashboard.html', icon: 'bi-speedometer2', label: 'Tableau de bord', short: 'Accueil' },
+    { key: 'entry', href: 'entry.html', icon: 'bi-clock-history', label: 'Saisir des heures', short: 'Saisir' },
+    { key: 'history', href: 'history.html', icon: 'bi-list-ul', label: 'Mon historique', short: 'Historique' },
+    { key: 'reports', href: 'reports.html', icon: 'bi-bar-chart-line', label: 'Rapports', short: 'Rapports' },
   ];
 
+  // --- Barre supérieure (liens complets visibles à partir de lg) ---
   const items = links.map(l => `
     <li class="nav-item">
       <a class="nav-link ${l.key === active ? 'active fw-semibold' : ''} text-white" href="${l.href}">
@@ -27,7 +31,7 @@ function renderNav(me, active) {
       <a class="navbar-brand d-flex align-items-center gap-2" href="dashboard.html">
         <img src="logo.png" alt=""> Ohipa
       </a>
-      <ul class="navbar-nav ms-auto align-items-lg-center">
+      <ul class="navbar-nav ms-auto align-items-lg-center d-none d-lg-flex">
         ${items}
         ${adminLink}
         <li class="nav-item ms-lg-3">
@@ -39,5 +43,28 @@ function renderNav(me, active) {
           </button>
         </li>
       </ul>
+      <button class="btn btn-outline-light btn-sm ms-auto d-lg-none" onclick="logout()" title="Déconnexion">
+        <i class="bi bi-box-arrow-right"></i>
+      </button>
     </div>`;
+
+  // --- Bottom navbar (mobile uniquement) ---
+  const bnItems = links.map(l => `
+    <a class="bn-item ${l.key === active ? 'active' : ''}" href="${l.href}">
+      <i class="bi ${l.icon}"></i><span>${l.short}</span>
+    </a>`);
+  if (me.role === 'admin') {
+    bnItems.push(`
+    <a class="bn-item admin ${active === 'admin' ? 'active' : ''}" href="admin-dashboard.html">
+      <i class="bi bi-shield-lock"></i><span>Admin</span>
+    </a>`);
+  }
+
+  document.getElementById('bottom-nav')?.remove();          // évite les doublons
+  const nav = document.createElement('nav');
+  nav.id = 'bottom-nav';
+  nav.className = 'bottom-nav d-lg-none';
+  nav.innerHTML = bnItems.join('');
+  document.body.appendChild(nav);
+  document.body.classList.add('has-bottom-nav');
 }

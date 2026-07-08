@@ -199,6 +199,50 @@ hr, .border-top { border-color: var(--border) !important; }
 }
 
 /* ============================================================
+   Bottom navbar (mobile uniquement)
+   ============================================================ */
+.bottom-nav {
+  position: fixed;
+  left: 0; right: 0; bottom: 0;
+  z-index: 1030;
+  display: flex;
+  gap: .15rem;
+  padding: .3rem .25rem calc(.3rem + env(safe-area-inset-bottom, 0px));
+  background: rgba(8, 12, 24, 0.92);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border-top: 1px solid var(--border);
+  box-shadow: 0 -10px 30px -14px #000;
+}
+.bn-item {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  padding: .35rem 0;
+  text-decoration: none;
+  color: var(--text-muted);
+  font-size: .66rem;
+  line-height: 1;
+  border-radius: 12px;
+  transition: color .2s, background .2s;
+}
+.bn-item i { font-size: 1.3rem; }
+.bn-item:active { background: rgba(120, 160, 255, .10); }
+.bn-item.active { color: #fff; background: rgba(47, 107, 255, .14); }
+.bn-item.active i { color: var(--cyan); filter: drop-shadow(0 0 8px var(--glow)); }
+.bn-item.admin { color: var(--warning); }
+.bn-item.admin.active i { color: var(--warning); filter: drop-shadow(0 0 8px rgba(255, 200, 87, .5)); }
+
+/* Réserve l'espace bas pour ne pas masquer le contenu derrière la barre fixe. */
+.has-bottom-nav { padding-bottom: 70px; }
+@media (min-width: 992px) {
+  .has-bottom-nav { padding-bottom: 0; }
+}
+
+/* ============================================================
    Splash d'ouverture — logo lumineux puis fondu
    ============================================================ */
 #ohipa-splash {
