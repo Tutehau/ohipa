@@ -295,12 +295,15 @@ test('kiosque : PIN + badge arrivée/départ + rejets', async () => {
 
   const pinRes = await boss('POST', `/api/admin/users/${nate.id}/pin`);
   assert.equal(pinRes.status, 200);
-  assert.match(pinRes.json.pin, /^\d{6}$/);
+  assert.match(pinRes.json.pin, /^\d{8}$/);
   const pin = pinRes.json.pin;
 
   const kiosk = await boss('POST', '/api/admin/kiosks', { label: 'Entrée' });
   assert.ok(kiosk.json.token);
   assert.ok(kiosk.json.qr && kiosk.json.qr.includes('<svg'), 'QR SVG généré');
+  // Le jeton doit être dans le fragment (#), jamais en query (?token=).
+  assert.ok(kiosk.json.url.includes('#token='), 'jeton dans le fragment');
+  assert.ok(!kiosk.json.url.includes('?token='), 'pas de jeton en query string');
   const token = kiosk.json.token;
 
   const punch = (t, body) => fetch(base + '/api/kiosk/punch', {

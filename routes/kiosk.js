@@ -25,13 +25,18 @@ router.get('/kiosk/ping', requireKiosk, (req, res) => {
   res.json({ ok: true, label: req.kiosk.label });
 });
 
-// Limite les tentatives de PIN (anti brute-force) sur l'appareil.
-const punchLimiter = rateLimit({ windowMs: 60 * 1000, max: 30, standardHeaders: true, legacyHeaders: false });
+// Anti brute-force : quota strict PAR KIOSQUE (pas seulement par IP), car un
+// même appareil derrière un NAT ne doit pas pouvoir marteler les PIN.
+const punchLimiter = rateLimit({
+  windowMs: 60 * 1000, max: 10,
+  standardHeaders: true, legacyHeaders: false,
+  keyGenerator: (req) => 'kiosk:' + req.kiosk.id,
+});
 
 // Badge : PIN -> bascule arrivée/départ pour l'utilisateur correspondant.
 router.post('/kiosk/punch', requireKiosk, punchLimiter, (req, res) => {
   const pin = String(req.body.pin || '');
-  if (!/^\d{4,6}$/.test(pin)) return res.status(400).json({ message: 'PIN invalide' });
+  if (!/^\d{4,8}$/.test(pin)) return res.status(400).json({ message: 'PIN invalide' });
 
   const user = db.prepare('SELECT id, username FROM users WHERE pin_hash = ? AND active = 1').get(hashPin(pin));
   if (!user) return res.status(404).json({ message: 'PIN inconnu' });

@@ -28,12 +28,13 @@ function startClock() {
 }
 
 // --- Saisie du PIN ---
+const PIN_MAX = 8;
 function renderDots() {
   const dots = [];
-  for (let i = 0; i < Math.max(6, pin.length); i++) dots.push(i < pin.length ? '●' : '○');
+  for (let i = 0; i < PIN_MAX; i++) dots.push(i < pin.length ? '●' : '○');
   $('pin-dots').textContent = dots.join(' ');
 }
-function setPin(v) { pin = v.slice(0, 6); renderDots(); }
+function setPin(v) { pin = v.slice(0, PIN_MAX); renderDots(); }
 
 // --- Retour visuel ---
 function feedback(kind, title, sub) {
@@ -94,12 +95,13 @@ function activate(info) {
 }
 
 (async () => {
-  // Jeton passé dans l'URL (via QR) : on l'adopte puis on nettoie l'URL.
-  const urlToken = new URLSearchParams(location.search).get('token');
+  // Jeton passé dans le FRAGMENT (#token=), via le QR : jamais envoyé au serveur
+  // ni au CDN (Referer). On l'adopte puis on nettoie l'URL immédiatement.
+  const urlToken = new URLSearchParams(location.hash.slice(1)).get('token');
   if (urlToken) {
     token = urlToken;
-    const info = await validateToken(token);
     history.replaceState(null, '', location.pathname);
+    const info = await validateToken(token);
     if (info) return activate(info);
     token = '';
   } else if (token) {

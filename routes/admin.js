@@ -153,9 +153,9 @@ router.post('/admin/users/:id/pin', isAuth, isAdmin, (req, res) => {
   const user = db.prepare('SELECT id FROM users WHERE id = ?').get(req.params.id);
   if (!user) return res.status(404).json({ message: 'Utilisateur introuvable' });
 
-  // Génère un PIN à 6 chiffres unique (quelques essais en cas de collision).
+  // Génère un PIN à 8 chiffres unique (10^8 => brute-force impraticable).
   for (let i = 0; i < 20; i++) {
-    const pin = String(crypto.randomInt(0, 1000000)).padStart(6, '0');
+    const pin = String(crypto.randomInt(0, 100000000)).padStart(8, '0');
     const taken = db.prepare('SELECT 1 FROM users WHERE pin_hash = ?').get(hashPin(pin));
     if (taken) continue;
     db.prepare('UPDATE users SET pin_hash = ? WHERE id = ?').run(hashPin(pin), user.id);
@@ -182,9 +182,10 @@ router.post('/admin/kiosks', isAuth, isAdmin, async (req, res) => {
   db.prepare(`INSERT INTO kiosks (id, label, token_hash, created_by, created_at)
               VALUES (?, ?, ?, ?, ?)`).run(id, label, hashToken(token), req.session.userId, new Date().toISOString());
 
-  // URL d'ouverture du kiosque + QR (généré ici car le jeton n'est connu qu'ici).
+  // URL d'ouverture + QR. Le jeton est mis dans le FRAGMENT (#token=) : un
+  // fragment n'est jamais envoyé au serveur (absent des logs) ni dans le Referer.
   const base = process.env.BASE_URL || '';
-  const url = `${base}/kiosk.html?token=${token}`;
+  const url = `${base}/kiosk.html#token=${token}`;
   let qr = null;
   try { qr = await qrcode.toString(url, { type: 'svg', margin: 1 }); } catch { /* QR optionnel */ }
   // Jeton et URL montrés une seule fois.
