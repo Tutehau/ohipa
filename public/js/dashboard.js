@@ -1,6 +1,7 @@
 let companies = [];
 let weekChart = null;
 let timer = null;
+let weekOffset = 0;   // 0 = semaine courante, -1 = précédente, +1 = suivante
 
 const roundH = (n) => Math.round((n || 0) * 100) / 100;
 const localDate = () => new Date().toLocaleDateString('sv-SE');
@@ -11,11 +12,11 @@ function fmtDuration(ms) {
   return `${p(Math.floor(s / 3600))}:${p(Math.floor((s % 3600) / 60))}:${p(s % 60)}`;
 }
 
-// Bornes de la semaine courante (lundi -> dimanche), en date locale.
-function weekBounds() {
+// Bornes d'une semaine (lundi -> dimanche), décalée de `offset` semaines.
+function weekBounds(offset = 0) {
   const now = new Date();
   const dow = (now.getDay() + 6) % 7; // lundi = 0
-  const mon = new Date(now); mon.setHours(0, 0, 0, 0); mon.setDate(now.getDate() - dow);
+  const mon = new Date(now); mon.setHours(0, 0, 0, 0); mon.setDate(now.getDate() - dow + offset * 7);
   const iso = (d) => d.toLocaleDateString('sv-SE');
   const days = [];
   for (let i = 0; i < 7; i++) {
@@ -70,7 +71,10 @@ async function refreshStatus() {
 
 // --- Semaine + aujourd'hui + graphique ---
 async function refreshWeek() {
-  const wk = weekBounds();
+  const wk = weekBounds(weekOffset);
+  const fmt = (s) => new Date(s + 'T00:00:00').toLocaleDateString('fr-FR', { day: '2-digit', month: 'short' });
+  document.getElementById('week-label').textContent = weekOffset === 0 ? 'Cette semaine' : `${fmt(wk.from)} – ${fmt(wk.to)}`;
+  document.getElementById('week-today').classList.toggle('active', weekOffset === 0);
   const [rec, pointages] = await Promise.all([
     api(`/api/reconciliation?from=${wk.from}&to=${wk.to}`),
     api('/api/pointages'),
@@ -96,12 +100,10 @@ async function refreshWeek() {
   eb.className = 'badge ' + (ecart < 0 ? 'bg-warning' : 'bg-success');
   document.getElementById('week-hint').textContent = rec.totals.planned > 0 ? `${pct}% du prévu` : 'Aucun planning cette semaine';
 
-  // Aujourd'hui (réel + pause) et nombre de segments de la semaine
+  // Aujourd'hui (réel + pause) — toujours la vraie date du jour.
   const today = localDate();
-  const weekSet = new Set(wk.days.map((d) => d.iso));
-  let weekCount = 0, todayWorked = 0, breakMs = 0;
+  let todayWorked = 0, breakMs = 0;
   const todaySegs = pointages.filter((p) => p.workDate === today).sort((a, b) => new Date(a.clockIn) - new Date(b.clockIn));
-  for (const p of pointages) if (weekSet.has(p.workDate) && p.clockOut) weekCount++;
   for (let i = 0; i < todaySegs.length; i++) {
     const p = todaySegs[i];
     if (p.clockOut) todayWorked += p.hours;
@@ -109,7 +111,13 @@ async function refreshWeek() {
   }
   document.getElementById('today-real').textContent = roundH(todayWorked) + 'h';
   document.getElementById('today-break').textContent = 'Pause ' + roundH(breakMs / 3600000) + 'h';
-  document.getElementById('week-count').textContent = weekCount;
+}
+
+// Total cumulé (toutes périodes) — garantit que les données sont toujours visibles.
+async function refreshAllTime() {
+  const rep = await api('/api/reports');
+  document.getElementById('total-all').textContent = roundH(rep.totalHours) + 'h';
+  document.getElementById('total-all-sub').textContent = rep.count + ' pointage' + (rep.count > 1 ? 's' : '');
 }
 
 function renderWeekChart(labels, planned, real) {
@@ -151,7 +159,7 @@ async function refreshNextSlot() {
   sub.textContent = `${rel}${upcoming.companyName ? ' · ' + upcoming.companyName : ''}`;
 }
 
-async function refreshAll() { await Promise.all([refreshStatus(), refreshWeek(), refreshNextSlot()]); }
+async function refreshAll() { await Promise.all([refreshStatus(), refreshWeek(), refreshNextSlot(), refreshAllTime()]); }
 
 (async () => {
   const me = await requireAuth();
@@ -164,6 +172,11 @@ async function refreshAll() { await Promise.all([refreshStatus(), refreshWeek(),
 
   await loadCompanies();
   await refreshAll();
+
+  // Navigation de semaine (les données des autres semaines restent accessibles).
+  document.getElementById('week-prev').onclick = () => { weekOffset--; refreshWeek(); };
+  document.getElementById('week-next').onclick = () => { weekOffset++; refreshWeek(); };
+  document.getElementById('week-today').onclick = () => { weekOffset = 0; refreshWeek(); };
 
   const post = async (url, body) => { await api(url, 'POST', body); await refreshAll(); };
   const companyId = () => document.getElementById('company-select').value || null;
