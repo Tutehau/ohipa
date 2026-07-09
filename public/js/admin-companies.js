@@ -21,6 +21,7 @@ async function loadCompanies() {
 (async () => {
   const me = await requireAuth({ adminOnly: true });
   if (!me) return;
+  renderAdminNav('companies');
   await loadCompanies();
 
   document.getElementById('company-form').onsubmit = async (e) => {

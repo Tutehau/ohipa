@@ -1,6 +1,7 @@
 (async () => {
   const me = await requireAuth({ adminOnly: true });
   if (!me) return;
+  renderAdminNav('dashboard');
 
   const { users, companies, hours, recent } = await api('/api/admin/stats');
   document.getElementById('stat-users').textContent = users;

@@ -42,6 +42,7 @@ async function loadUsers() {
 (async () => {
   const me = await requireAuth({ adminOnly: true });
   if (!me) return;
+  renderAdminNav('users');
   currentUsername = me.username;
   await loadUsers();
 

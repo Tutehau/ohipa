@@ -25,6 +25,7 @@ function reveal(k) {
 (async () => {
   const me = await requireAuth({ adminOnly: true });
   if (!me) return;
+  renderAdminNav('kiosk');
   await loadKiosks();
 
   document.getElementById('kiosk-form').onsubmit = async (e) => {
