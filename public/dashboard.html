@@ -18,65 +18,115 @@
 <body>
   <script src="js/splash.js"></script>
   <nav id="topnav" class="navbar navbar-expand-lg navbar-dark bg-dark mb-4"></nav>
-  <div class="container">
-    <h2 class="mb-4"><i class="bi bi-speedometer2 me-2"></i>Tableau de bord</h2>
+  <div class="container pb-4">
 
-    <div class="row g-3 mb-4">
-      <div class="col-md-4">
-        <div class="card stat-card p-3 shadow-sm">
-          <small class="text-muted"><i class="bi bi-clock me-1"></i>Total pointé (réel)</small>
-          <h3 id="stat-hours">0h</h3>
-        </div>
-      </div>
-      <div class="col-md-4">
-        <div class="card stat-card p-3 shadow-sm" style="border-left-color:#198754">
-          <small class="text-muted"><i class="bi bi-fingerprint me-1"></i>Segments pointés</small>
-          <h3 id="stat-entries">0</h3>
-        </div>
-      </div>
-      <div class="col-md-4">
-        <div class="card stat-card p-3 shadow-sm" style="border-left-color:#ffc107">
-          <small class="text-muted"><i class="bi bi-calendar-event me-1"></i>Dernier pointage</small>
-          <h3 id="stat-last">—</h3>
-        </div>
+    <!-- En-tête -->
+    <div class="d-flex justify-content-between align-items-end flex-wrap gap-2 mb-4">
+      <div>
+        <h2 class="mb-0" id="greeting">Bonjour</h2>
+        <div class="text-muted" id="today-date"></div>
       </div>
     </div>
 
     <div class="row g-3">
-      <div class="col-md-6 col-lg-4">
-        <a href="pointage.html" class="text-decoration-none">
-          <div class="card p-4 shadow-sm h-100">
-            <h5 class="text-dark"><i class="bi bi-fingerprint text-info me-2"></i>Pointage</h5>
-            <p class="text-muted mb-0">Pointer mon arrivée et mon départ.</p>
+      <!-- HERO : pointage en direct -->
+      <div class="col-lg-8">
+        <div class="card hero-card p-4 shadow-sm h-100">
+          <div class="row align-items-center g-4">
+            <div class="col-sm-6 text-center text-sm-start">
+              <div class="text-muted small mb-1"><i class="bi bi-clock me-1"></i><span id="hero-status-label">Statut</span></div>
+              <div id="hero-status" class="fs-5 fw-semibold mb-1">—</div>
+              <div id="hero-timer" class="hero-timer" style="font-variant-numeric:tabular-nums">00:00:00</div>
+            </div>
+            <div class="col-sm-6">
+              <label class="form-label" id="company-label">Société</label>
+              <div class="input-group mb-2">
+                <select id="company-select" class="form-select"></select>
+                <button class="btn btn-outline-light" id="btn-add-company" type="button" title="Nouvelle société"><i class="bi bi-plus-lg"></i></button>
+              </div>
+              <div class="d-grid gap-2">
+                <button id="btn-in" class="btn btn-success btn-lg d-none"><i class="bi bi-box-arrow-in-right me-1"></i>Pointer l'arrivée</button>
+                <button id="btn-resume" class="btn btn-success btn-lg d-none"><i class="bi bi-play-fill me-1"></i>Reprendre</button>
+                <div class="row g-2">
+                  <div class="col"><button id="btn-pause" class="btn btn-warning w-100 d-none"><i class="bi bi-pause-fill me-1"></i>Pause</button></div>
+                  <div class="col"><button id="btn-out" class="btn btn-danger w-100 d-none"><i class="bi bi-box-arrow-right me-1"></i>Départ</button></div>
+                </div>
+              </div>
+            </div>
           </div>
-        </a>
+        </div>
       </div>
-      <div class="col-md-6 col-lg-4">
-        <a href="planning.html" class="text-decoration-none">
-          <div class="card p-4 shadow-sm h-100">
-            <h5 class="text-dark"><i class="bi bi-calendar-week text-primary me-2"></i>Mon planning</h5>
-            <p class="text-muted mb-0">Prévoir mes créneaux par société.</p>
+
+      <!-- SEMAINE : réel vs prévu -->
+      <div class="col-lg-4">
+        <div class="card p-4 shadow-sm h-100">
+          <div class="d-flex justify-content-between align-items-center mb-2">
+            <h6 class="mb-0"><i class="bi bi-calendar-range me-2"></i>Cette semaine</h6>
+            <span class="badge" id="week-ecart-badge">—</span>
           </div>
-        </a>
+          <div class="d-flex align-items-baseline gap-2">
+            <span class="display-6 fw-bold" id="week-real">0h</span>
+            <span class="text-muted">/ <span id="week-planned">0h</span> prévues</span>
+          </div>
+          <div class="progress mt-2" style="height:10px">
+            <div id="week-progress" class="progress-bar" style="width:0%"></div>
+          </div>
+          <div class="text-muted small mt-2" id="week-hint"></div>
+        </div>
       </div>
-      <div class="col-md-6 col-lg-4">
-        <a href="reports.html" class="text-decoration-none">
-          <div class="card p-4 shadow-sm h-100">
-            <h5 class="text-dark"><i class="bi bi-clipboard-check text-warning me-2"></i>Prévu vs Réel</h5>
-            <p class="text-muted mb-0">Comparer mon planning et mon pointage.</p>
-          </div>
-        </a>
+    </div>
+
+    <!-- Tuiles -->
+    <div class="row g-3 mt-1">
+      <div class="col-md-4">
+        <div class="card stat-card p-3 shadow-sm">
+          <small class="text-muted"><i class="bi bi-sun me-1"></i>Aujourd'hui</small>
+          <h3 id="today-real">0h</h3>
+          <small class="text-muted" id="today-break">Pause 0h</small>
+        </div>
       </div>
-      <div class="col-md-6 col-lg-4">
-        <a href="history.html" class="text-decoration-none">
-          <div class="card p-4 shadow-sm h-100">
-            <h5 class="text-dark"><i class="bi bi-list-ul text-success me-2"></i>Historique</h5>
-            <p class="text-muted mb-0">Consulter tous mes pointages passés.</p>
+      <div class="col-md-4">
+        <div class="card stat-card p-3 shadow-sm" style="border-left-color:#00c6ff">
+          <small class="text-muted"><i class="bi bi-fingerprint me-1"></i>Segments cette semaine</small>
+          <h3 id="week-count">0</h3>
+          <small class="text-muted">pointages</small>
+        </div>
+      </div>
+      <div class="col-md-4">
+        <div class="card stat-card p-3 shadow-sm" style="border-left-color:#ff8a5c">
+          <small class="text-muted"><i class="bi bi-calendar-event me-1"></i>Prochain créneau</small>
+          <h3 id="next-slot" class="fs-4">—</h3>
+          <small class="text-muted" id="next-slot-sub"></small>
+        </div>
+      </div>
+    </div>
+
+    <div class="row g-3 mt-1">
+      <!-- Graphique semaine -->
+      <div class="col-lg-8">
+        <div class="card p-4 shadow-sm h-100">
+          <h6 class="mb-3"><i class="bi bi-bar-chart-line me-2"></i>Heures de la semaine</h6>
+          <canvas id="week-chart" height="130"></canvas>
+        </div>
+      </div>
+      <!-- Actions rapides -->
+      <div class="col-lg-4">
+        <div class="card p-4 shadow-sm h-100">
+          <h6 class="mb-3"><i class="bi bi-grid me-2"></i>Accès rapide</h6>
+          <div class="d-grid gap-2">
+            <a href="pointage.html" class="btn btn-outline-light text-start"><i class="bi bi-fingerprint me-2 text-info"></i>Pointage</a>
+            <a href="planning.html" class="btn btn-outline-light text-start"><i class="bi bi-calendar-week me-2 text-primary"></i>Mon planning</a>
+            <a href="reports.html" class="btn btn-outline-light text-start"><i class="bi bi-clipboard-check me-2 text-warning"></i>Prévu vs Réel</a>
+            <a href="history.html" class="btn btn-outline-light text-start"><i class="bi bi-list-ul me-2 text-success"></i>Historique</a>
           </div>
-        </a>
+        </div>
       </div>
     </div>
   </div>
+
+  <div id="alert" class="alert-toast d-none" role="alert"></div>
+
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js" integrity="sha384-9nhczxUqK87bcKHh20fSQcTGD4qq5GhayNYSYWqwBkINBhOfQLg/P5HG5lF1urn4" crossorigin="anonymous"></script>
   <script src="js/api.js"></script>
   <script src="js/nav.js"></script>
   <script src="js/dashboard.js"></script>

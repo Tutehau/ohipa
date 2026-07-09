@@ -146,6 +146,23 @@ a:focus-visible, button:focus-visible, .btn:focus-visible,
 .stat-card:hover { transform: translateY(-4px); box-shadow: 0 24px 60px -20px var(--glow); }
 .stat-card h3 { font-size: 2rem; font-weight: 700; font-family: var(--font-display); }
 
+/* ---- Tableau de bord : carte héro (pointage en direct) ---- */
+.hero-card {
+  border: 1px solid var(--border-strong);
+  background: linear-gradient(135deg, rgba(47, 107, 255, .12), var(--surface) 60%);
+}
+.hero-timer { font-family: var(--font-display); font-size: 2.6rem; font-weight: 700; line-height: 1; }
+.progress { background: var(--surface-2); border-radius: 999px; }
+.progress-bar { background: var(--grad); }
+
+/* Alerte flottante (toast) pour le tableau de bord */
+.alert-toast {
+  position: fixed; left: 50%; transform: translateX(-50%);
+  bottom: 88px; z-index: 1050; max-width: 92%;
+  box-shadow: var(--shadow);
+}
+@media (min-width: 992px) { .alert-toast { bottom: 24px; } }
+
 /* ---- Navbar supérieure (chrome sombre) ---- */
 .navbar.bg-dark, .navbar-dark {
   background: var(--chrome-bg) !important;
