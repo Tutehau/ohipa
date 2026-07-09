@@ -43,18 +43,22 @@ function renderNav(me, active) {
       <ul class="navbar-nav ms-auto align-items-lg-center d-none d-lg-flex">
         ${items}
         ${adminLink}
-        <li class="nav-item ms-lg-3">
-          <span class="navbar-text text-white-50 me-2">
+        <li class="nav-item ms-lg-3 d-flex align-items-center gap-2">
+          <span class="navbar-text me-1">
             <i class="bi bi-person-circle me-1"></i>${escapeHtml(me.username)}
           </span>
+          ${themeToggleHtml()}
           <button class="btn btn-outline-light btn-sm" onclick="logout()">
             <i class="bi bi-box-arrow-right me-1"></i>Déconnexion
           </button>
         </li>
       </ul>
-      <button class="btn btn-outline-light btn-sm ms-auto d-lg-none" onclick="logout()" title="Déconnexion">
-        <i class="bi bi-box-arrow-right"></i>
-      </button>
+      <span class="ms-auto d-lg-none d-flex gap-2">
+        ${themeToggleHtml()}
+        <button class="btn btn-outline-light btn-sm" onclick="logout()" title="Déconnexion">
+          <i class="bi bi-box-arrow-right"></i>
+        </button>
+      </span>
     </div>`;
 
   // --- Bottom navbar (mobile uniquement) ---

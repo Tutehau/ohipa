@@ -9,11 +9,21 @@ function renderAdminNav(active) {
     top.className = 'navbar navbar-dark bg-dark d-lg-none px-3 mb-3';
     top.innerHTML = `
       <a class="navbar-brand d-flex align-items-center gap-2" href="admin-dashboard.html"><img src="logo.png" alt=""> Ohipa</a>
-      <span class="d-flex gap-2">
+      <span class="d-flex gap-2 align-items-center">
+        ${themeToggleHtml()}
         <a class="btn btn-outline-light btn-sm" href="dashboard.html" title="Espace utilisateur"><i class="bi bi-person"></i></a>
         <button class="btn btn-outline-light btn-sm" onclick="logout()" title="Déconnexion"><i class="bi bi-box-arrow-right"></i></button>
       </span>`;
     document.body.prepend(top);
+  }
+
+  // Bascule de thème dans la barre latérale (desktop).
+  const sideNav = document.querySelector('.sidebar .nav');
+  if (sideNav && !sideNav.querySelector('.theme-toggle')) {
+    const li = document.createElement('li');
+    li.className = 'nav-item mt-2 px-2';
+    li.innerHTML = themeToggleHtml() + '<span class="ms-2 small text-white-50">Thème</span>';
+    sideNav.appendChild(li);
   }
 
   // Bottom-nav mobile : 5 sections admin.

@@ -1,7 +1,23 @@
-// Animation d'ouverture Ohipa : logo lumineux puis fondu. Injecté sur chaque
-// page pour rester DRY. Pose aussi le favicon.
+// Thème + animation d'ouverture Ohipa. Chargé sur chaque page.
 (function () {
-  // Favicon (une seule fois)
+  // --- Thème (appliqué au plus tôt pour éviter le flash) ---
+  if (localStorage.getItem('ohipa_theme') === 'light') {
+    document.documentElement.setAttribute('data-theme', 'light');
+  }
+  window.isLight = () => document.documentElement.getAttribute('data-theme') === 'light';
+  window.themeIcon = () => (window.isLight() ? 'bi-moon-stars' : 'bi-sun-fill');
+  window.toggleTheme = function () {
+    const next = window.isLight() ? 'dark' : 'light';
+    if (next === 'light') document.documentElement.setAttribute('data-theme', 'light');
+    else document.documentElement.removeAttribute('data-theme');
+    localStorage.setItem('ohipa_theme', next);
+    document.querySelectorAll('.theme-toggle i').forEach((i) => { i.className = 'bi ' + window.themeIcon(); });
+  };
+  // Bouton réutilisable pour les barres de navigation.
+  window.themeToggleHtml = () =>
+    `<button class="theme-toggle" onclick="toggleTheme()" title="Basculer le thème" aria-label="Basculer le thème"><i class="bi ${window.themeIcon()}"></i></button>`;
+
+  // --- Favicon ---
   if (!document.querySelector('link[rel="icon"]')) {
     const fav = document.createElement('link');
     fav.rel = 'icon';
@@ -9,22 +25,17 @@
     document.head.appendChild(fav);
   }
 
-  // On ne rejoue pas le splash lors des navigations internes rapprochées
-  // (il reste une expérience d'« ouverture », pas un flash à chaque clic).
+  // --- Splash : une seule fois par session (plus une "ouverture" qu'un flash récurrent) ---
   try {
-    const last = parseFloat(sessionStorage.getItem('ohipa_splash') || '0');
-    const now = Number(performance.now()) + performance.timeOrigin;
-    if (now - last < 60000) return;                 // < 1 min => on saute
-    sessionStorage.setItem('ohipa_splash', String(now));
+    if (sessionStorage.getItem('ohipa_splash_seen')) return;
+    sessionStorage.setItem('ohipa_splash_seen', '1');
   } catch { /* sessionStorage indispo : on affiche quand même */ }
 
   const inject = () => {
     if (document.getElementById('ohipa-splash')) return;
     const splash = document.createElement('div');
     splash.id = 'ohipa-splash';
-    splash.innerHTML =
-      '<img src="logo.png" alt="Ohipa">' +
-      '<div class="splash-bar"></div>';
+    splash.innerHTML = '<img src="logo.png" alt="Ohipa"><div class="splash-bar"></div>';
     document.body.prepend(splash);
     splash.addEventListener('animationend', (e) => {
       if (e.animationName === 'splash-out') {

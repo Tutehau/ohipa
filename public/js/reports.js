@@ -1,4 +1,7 @@
 let dayChart = null;
+let companyChart = null;
+// Palette catégorielle (bleus de marque + accents) pour les répartitions.
+const CATEGORICAL = ['#2f6bff', '#00c6ff', '#ff8a5c', '#2fd98a', '#ffc857', '#a68bff', '#ff6b9d', '#4dd0e1'];
 
 // Assemble la query string à partir des filtres actifs.
 function currentQuery() {
@@ -49,6 +52,25 @@ function renderChart(byDay) {
   });
 }
 
+function renderCompanyDonut(rows) {
+  const ctx = document.getElementById('chart-company');
+  if (!ctx) return;
+  if (companyChart) companyChart.destroy();
+  if (!rows.length) return;
+  const muted = getComputedStyle(document.documentElement).getPropertyValue('--text-muted').trim() || '#93a2c6';
+  companyChart = new Chart(ctx, {
+    type: 'doughnut',
+    data: {
+      labels: rows.map(r => r.label),
+      datasets: [{ data: rows.map(r => r.hours), backgroundColor: CATEGORICAL, borderWidth: 0 }],
+    },
+    options: {
+      cutout: '62%',
+      plugins: { legend: { position: 'bottom', labels: { color: muted, boxWidth: 12, padding: 10 } } },
+    },
+  });
+}
+
 async function refresh() {
   const qs = currentQuery();
   document.getElementById('btn-export').href = '/api/reports/export.csv' + (qs ? '?' + qs : '');
@@ -56,6 +78,7 @@ async function refresh() {
   document.getElementById('t-hours').textContent = (Math.round(data.totalHours * 100) / 100) + 'h';
   document.getElementById('t-count').textContent = data.count;
   renderChart(data.byDay || []);
+  renderCompanyDonut(data.byCompany || []);
   renderList(document.getElementById('by-company'), data.byCompany);
   if (data.byUser) renderList(document.getElementById('by-user'), data.byUser);
 
