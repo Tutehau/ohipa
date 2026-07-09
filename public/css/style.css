@@ -86,8 +86,10 @@
   color-scheme: light;
 }
 
+*, *::before, *::after { box-sizing: border-box; }
 * { scrollbar-color: var(--blue) transparent; }
 
+html, body { overflow-x: hidden; max-width: 100%; }
 body {
   background: var(--body-bg);
   background-attachment: fixed;
@@ -95,6 +97,10 @@ body {
   min-height: 100vh;
   font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
 }
+/* Garde-fou conformité mobile : aucun média ne dépasse son conteneur. */
+img, svg, canvas, video, iframe { max-width: 100%; height: auto; }
+.table { max-width: 100%; }
+pre, code { white-space: pre-wrap; word-break: break-word; }
 
 h1, h2, h3, h4, h5, h6, .navbar-brand, .display-6, .display-5 {
   font-family: var(--font-display);
