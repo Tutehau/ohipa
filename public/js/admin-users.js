@@ -11,9 +11,18 @@ async function loadUsers() {
     const statusBadge = u.active
       ? '<span class="badge bg-success"><i class="bi bi-check-circle me-1"></i>actif</span>'
       : '<span class="badge bg-warning"><i class="bi bi-hourglass me-1"></i>inactif</span>';
+    const pinBadge = u.hasPin
+      ? '<span class="badge bg-info text-dark" title="Un PIN de badgeuse est défini"><i class="bi bi-qr-code me-1"></i>PIN</span>'
+      : '';
 
-    // Pas d'actions sur soi-même (protégé aussi côté serveur).
-    const actions = isSelf ? '<span class="text-muted small">vous</span>' : `
+    // Bouton PIN : (re)générer, et retirer s'il existe déjà.
+    const pinBtns = `
+      <button class="btn btn-sm btn-outline-info" data-action="pin" data-id="${escapeHtml(u.id)}" data-name="${escapeHtml(u.username)}" title="${u.hasPin ? 'Régénérer le PIN' : 'Générer un PIN de badgeuse'}">
+        <i class="bi bi-qr-code"></i></button>
+      ${u.hasPin ? `<button class="btn btn-sm btn-outline-light" data-action="pin-del" data-id="${escapeHtml(u.id)}" title="Retirer le PIN"><i class="bi bi-x-circle"></i></button>` : ''}`;
+
+    // Pas d'actions de rôle/suppression sur soi-même (protégé aussi côté serveur).
+    const selfOrAdminActions = isSelf ? '<span class="text-muted small">vous</span>' : `
       <button class="btn btn-sm btn-outline-light" data-action="role" data-id="${escapeHtml(u.id)}" data-role="${u.role === 'admin' ? 'user' : 'admin'}" title="Changer le rôle">
         <i class="bi bi-arrow-repeat"></i></button>
       <button class="btn btn-sm btn-outline-light" data-action="active" data-id="${escapeHtml(u.id)}" data-active="${u.active ? 0 : 1}" title="${u.active ? 'Désactiver' : 'Activer'}">
@@ -24,8 +33,8 @@ async function loadUsers() {
     return `<li class="list-group-item d-flex justify-content-between align-items-center flex-wrap gap-2">
       <span><i class="bi bi-person me-2"></i>${escapeHtml(u.username)}
         <small class="text-muted">${escapeHtml(u.email || '')}</small></span>
-      <span class="d-flex align-items-center gap-2">${statusBadge}${roleBadge}
-        <span class="d-flex gap-1 ms-2">${actions}</span></span>
+      <span class="d-flex align-items-center gap-2">${pinBadge}${statusBadge}${roleBadge}
+        <span class="d-flex gap-1 ms-2">${pinBtns}${selfOrAdminActions}</span></span>
     </li>`;
   }).join('');
 }
@@ -62,6 +71,11 @@ async function loadUsers() {
       } else if (btn.dataset.action === 'delete') {
         if (!confirm(`Supprimer l'utilisateur ${btn.dataset.name} et ses saisies ?`)) return;
         await api(`/api/admin/users/${id}`, 'DELETE');
+      } else if (btn.dataset.action === 'pin') {
+        const { pin } = await api(`/api/admin/users/${id}/pin`, 'POST');
+        showAlert(`PIN de badgeuse de ${btn.dataset.name} : ${pin} — communiquez-le au salarié (non réaffiché).`, 'success');
+      } else if (btn.dataset.action === 'pin-del') {
+        await api(`/api/admin/users/${id}/pin`, 'DELETE');
       }
       await loadUsers();
     } catch (err) { showAlert(err.message); }

@@ -287,6 +287,43 @@ test('société : suppression bloquée si encore utilisée', async () => {
   assert.equal((await c('DELETE', '/api/companies/' + id)).status, 200, 'plus utilisée -> suppression OK');
 });
 
+test('kiosque : PIN + badge arrivée/départ + rejets', async () => {
+  const boss = makeClient();
+  await boss('POST', '/api/login', { username: 'boss', password: 'pass123' });
+  await boss('POST', '/api/admin/invite', { username: 'nate', password: 'nate123' });
+  const nate = (await boss('GET', '/api/admin/users')).json.find(u => u.username === 'nate');
+
+  const pinRes = await boss('POST', `/api/admin/users/${nate.id}/pin`);
+  assert.equal(pinRes.status, 200);
+  assert.match(pinRes.json.pin, /^\d{6}$/);
+  const pin = pinRes.json.pin;
+
+  const kiosk = await boss('POST', '/api/admin/kiosks', { label: 'Entrée' });
+  assert.ok(kiosk.json.token);
+  assert.ok(kiosk.json.qr && kiosk.json.qr.includes('<svg'), 'QR SVG généré');
+  const token = kiosk.json.token;
+
+  const punch = (t, body) => fetch(base + '/api/kiosk/punch', {
+    method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Kiosk-Token': t },
+    body: JSON.stringify(body),
+  });
+
+  let r = await punch(token, { pin, date: '2026-07-09' });
+  let d = await r.json();
+  assert.equal(d.action, 'in'); assert.equal(d.username, 'nate');
+
+  r = await punch(token, { pin, date: '2026-07-09' });
+  assert.equal((await r.json()).action, 'out', 'second badge = départ');
+
+  assert.equal((await punch('mauvais-jeton', { pin })).status, 401, 'jeton invalide rejeté');
+  assert.equal((await punch(token, { pin: '000001' })).status, 404, 'PIN inconnu rejeté');
+
+  // Le badge a bien créé un pointage réel côté salarié.
+  const nateClient = makeClient();
+  await nateClient('POST', '/api/login', { username: 'nate', password: 'nate123' });
+  assert.equal((await nateClient('GET', '/api/pointages')).json.length, 1);
+});
+
 // Utilitaire : récupère un cookie de session pour un appel fetch direct.
 async function loginCookie(username, password) {
   const res = await fetch(base + '/api/login', {

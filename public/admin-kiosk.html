@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Admin · Kiosques | Ohipa</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-9ndCyUaIbzAi2FUVXJi0CjmCapSmO7SnpJef0486qhLnuZ2cdeRhO02iuK6FUUVM" crossorigin="anonymous">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet" integrity="sha384-XGjxtQfXaH2tnPFa9x+ruJTuLE3Aa6LhHSWRr1XeTyhezb4abCG4ccI5AkVDxqC+" crossorigin="anonymous">
+  <link href="css/style.css" rel="stylesheet">
+</head>
+<body>
+  <script src="js/splash.js"></script>
+  <div class="container-fluid">
+    <div class="row">
+      <nav class="col-md-3 col-lg-2 d-md-block sidebar p-3">
+        <div class="brand mb-4 px-1"><img src="logo.png" alt="Ohipa"><span class="fw-bold fs-5">Ohipa</span></div>
+        <ul class="nav flex-column gap-1">
+          <li class="nav-item"><a class="nav-link" href="admin-dashboard.html"><i class="bi bi-graph-up"></i>Tableau de bord</a></li>
+          <li class="nav-item"><a class="nav-link" href="admin-users.html"><i class="bi bi-people"></i>Utilisateurs</a></li>
+          <li class="nav-item"><a class="nav-link" href="admin-companies.html"><i class="bi bi-building"></i>Entreprises</a></li>
+          <li class="nav-item"><a class="nav-link active" href="admin-kiosk.html"><i class="bi bi-qr-code"></i>Kiosques</a></li>
+          <li class="nav-item"><a class="nav-link" href="reports.html"><i class="bi bi-bar-chart-line"></i>Rapports</a></li>
+          <li class="nav-item mt-3"><a class="nav-link text-warning" href="dashboard.html"><i class="bi bi-arrow-left"></i>Espace utilisateur</a></li>
+          <li class="nav-item"><a class="nav-link text-danger" href="#" onclick="logout()"><i class="bi bi-box-arrow-right"></i>Déconnexion</a></li>
+        </ul>
+      </nav>
+
+      <main class="col-md-9 col-lg-10 ms-sm-auto p-4">
+        <h2 class="mb-4"><i class="bi bi-qr-code me-2"></i>Kiosques (badgeuse)</h2>
+
+        <div class="card p-4 mb-4 shadow-sm">
+          <h5 class="mb-2"><i class="bi bi-plus-circle me-2"></i>Nouveau kiosque</h5>
+          <p class="text-muted small">Un kiosque = un appareil (tablette) autorisé à faire pointer les salariés par PIN.</p>
+          <div id="alert" class="d-none" role="alert"></div>
+          <form id="kiosk-form" class="row g-2">
+            <div class="col-md-9"><input type="text" id="kiosk-label" class="form-control" placeholder="Nom (ex. Entrée principale)" required></div>
+            <div class="col-md-3"><button type="submit" class="btn btn-primary w-100"><i class="bi bi-plus-lg me-1"></i>Créer</button></div>
+          </form>
+        </div>
+
+        <!-- Révélation unique du jeton + QR après création -->
+        <div id="reveal" class="card p-4 mb-4 shadow-sm d-none" style="border-color:var(--cyan)">
+          <div class="d-flex justify-content-between align-items-start">
+            <h5 class="mb-3"><i class="bi bi-check-circle text-success me-2"></i>Kiosque créé</h5>
+            <button class="btn-close btn-close-white" onclick="document.getElementById('reveal').classList.add('d-none')"></button>
+          </div>
+          <div class="row g-3 align-items-center">
+            <div class="col-md-4 text-center"><div id="reveal-qr" class="bg-white p-2 rounded d-inline-block"></div></div>
+            <div class="col-md-8">
+              <p class="mb-2"><i class="bi bi-exclamation-triangle text-warning me-1"></i>À noter maintenant — le jeton ne sera plus affiché.</p>
+              <label class="form-label mb-1">Lien d'ouverture (scanner le QR ou ouvrir ce lien sur la tablette)</label>
+              <div class="input-group mb-2">
+                <input type="text" id="reveal-url" class="form-control" readonly>
+                <button class="btn btn-outline-light" onclick="navigator.clipboard.writeText(document.getElementById('reveal-url').value)"><i class="bi bi-clipboard"></i></button>
+              </div>
+              <label class="form-label mb-1">Jeton</label>
+              <input type="text" id="reveal-token" class="form-control" readonly>
+            </div>
+          </div>
+        </div>
+
+        <div class="card p-4 shadow-sm">
+          <h5 class="mb-3"><i class="bi bi-list-ul me-2"></i>Kiosques actifs</h5>
+          <ul id="kiosk-list" class="list-group list-group-flush"></ul>
+        </div>
+      </main>
+    </div>
+  </div>
+  <script src="js/api.js"></script>
+  <script src="js/admin-kiosk.js"></script>
+</body>
+</html>

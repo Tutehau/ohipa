@@ -15,6 +15,7 @@ const adminRoutes = require('./routes/admin');
 const reportsRoutes = require('./routes/reports');
 const planningRoutes = require('./routes/planning');
 const pointageRoutes = require('./routes/pointage');
+const { router: kioskRoutes } = require('./routes/kiosk');
 
 const PORT = process.env.PORT || 3000;
 
@@ -83,6 +84,7 @@ function createApp() {
   app.use('/api', reportsRoutes);
   app.use('/api', planningRoutes);
   app.use('/api', pointageRoutes);
+  app.use('/api', kioskRoutes);
 
   // Fichiers statiques (front)
   app.use(express.static(path.join(__dirname, 'public')));

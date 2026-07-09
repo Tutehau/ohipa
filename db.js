@@ -69,6 +69,16 @@ db.exec(`
     created_at  TEXT NOT NULL
   );
   CREATE INDEX IF NOT EXISTS idx_pointages_user ON pointages(user_id, clock_in);
+
+  -- Kiosques : appareils partagés (tablette badgeuse) autorisés via un jeton.
+  CREATE TABLE IF NOT EXISTS kiosks (
+    id         TEXT PRIMARY KEY,
+    label      TEXT NOT NULL,
+    token_hash TEXT NOT NULL UNIQUE,    -- sha256 du jeton d'appareil
+    created_by TEXT REFERENCES users(id) ON DELETE SET NULL,
+    created_at TEXT NOT NULL,
+    last_used  TEXT
+  );
 `);
 
 // Ajouts de colonnes rétro-compatibles (bases déjà existantes).
@@ -82,6 +92,11 @@ ensureColumn('pointages', 'end_reason', 'end_reason TEXT');
 // Date locale de travail (YYYY-MM-DD dans le fuseau de l'utilisateur), fixée au
 // clock-in. Indispensable pour comparer prévu/réel au bon jour à l'échelle mondiale.
 ensureColumn('pointages', 'work_date', 'work_date TEXT');
+
+// PIN de badgeuse par utilisateur : haché (SHA-256 + pepper), unique, indexé
+// pour un lookup O(1) au badge sans stocker les codes en clair.
+ensureColumn('users', 'pin_hash', 'pin_hash TEXT');
+db.exec('CREATE UNIQUE INDEX IF NOT EXISTS idx_users_pin ON users(pin_hash) WHERE pin_hash IS NOT NULL');
 
 // --- Migration ponctuelle depuis l'ancien stockage JSON ---------------------
 // Si des fichiers *.json existent et que la table users est vide, on importe

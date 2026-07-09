@@ -1,9 +1,11 @@
 const express = require('express');
 const bcrypt = require('bcrypt');
 const crypto = require('crypto');
+const qrcode = require('qrcode');
 const db = require('../db');
 const email = require('../lib/email');
 const { isAuth, isAdmin } = require('../middleware/auth');
+const { hashPin, hashToken } = require('./kiosk');
 
 const router = express.Router();
 
@@ -37,7 +39,7 @@ function canManageCompany(req, res) {
 
 // --- Utilisateurs (admin) --------------------------------------------------
 router.get('/admin/users', isAuth, isAdmin, (req, res) => {
-  res.json(db.prepare('SELECT id, username, email, role, active FROM users ORDER BY username').all());
+  res.json(db.prepare('SELECT id, username, email, role, active, (pin_hash IS NOT NULL) AS hasPin FROM users ORDER BY username').all());
 });
 
 // L'admin crée directement un utilisateur actif et lui envoie ses identifiants.
@@ -144,6 +146,55 @@ router.delete('/admin/users/:id', isAuth, isAdmin, (req, res) => {
   // Les entrées de l'utilisateur sont supprimées en cascade (cf. FK).
   db.prepare('DELETE FROM users WHERE id = ?').run(user.id);
   res.json({ message: 'Utilisateur supprimé' });
+});
+
+// --- PIN de badgeuse par utilisateur --------------------------------------
+router.post('/admin/users/:id/pin', isAuth, isAdmin, (req, res) => {
+  const user = db.prepare('SELECT id FROM users WHERE id = ?').get(req.params.id);
+  if (!user) return res.status(404).json({ message: 'Utilisateur introuvable' });
+
+  // Génère un PIN à 6 chiffres unique (quelques essais en cas de collision).
+  for (let i = 0; i < 20; i++) {
+    const pin = String(crypto.randomInt(0, 1000000)).padStart(6, '0');
+    const taken = db.prepare('SELECT 1 FROM users WHERE pin_hash = ?').get(hashPin(pin));
+    if (taken) continue;
+    db.prepare('UPDATE users SET pin_hash = ? WHERE id = ?').run(hashPin(pin), user.id);
+    return res.json({ pin });
+  }
+  res.status(500).json({ message: 'Impossible de générer un PIN unique, réessayez' });
+});
+
+router.delete('/admin/users/:id/pin', isAuth, isAdmin, (req, res) => {
+  db.prepare('UPDATE users SET pin_hash = NULL WHERE id = ?').run(req.params.id);
+  res.json({ message: 'PIN supprimé' });
+});
+
+// --- Kiosques (appareils badgeuse) ----------------------------------------
+router.get('/admin/kiosks', isAuth, isAdmin, (req, res) => {
+  res.json(db.prepare('SELECT id, label, created_at, last_used FROM kiosks ORDER BY created_at DESC').all());
+});
+
+router.post('/admin/kiosks', isAuth, isAdmin, async (req, res) => {
+  const label = (req.body.label || '').trim();
+  if (!label) return res.status(400).json({ message: 'Nom du kiosque requis' });
+  const token = crypto.randomBytes(24).toString('hex');
+  const id = crypto.randomUUID();
+  db.prepare(`INSERT INTO kiosks (id, label, token_hash, created_by, created_at)
+              VALUES (?, ?, ?, ?, ?)`).run(id, label, hashToken(token), req.session.userId, new Date().toISOString());
+
+  // URL d'ouverture du kiosque + QR (généré ici car le jeton n'est connu qu'ici).
+  const base = process.env.BASE_URL || '';
+  const url = `${base}/kiosk.html?token=${token}`;
+  let qr = null;
+  try { qr = await qrcode.toString(url, { type: 'svg', margin: 1 }); } catch { /* QR optionnel */ }
+  // Jeton et URL montrés une seule fois.
+  res.json({ id, label, token, url, qr });
+});
+
+router.delete('/admin/kiosks/:id', isAuth, isAdmin, (req, res) => {
+  const r = db.prepare('DELETE FROM kiosks WHERE id = ?').run(req.params.id);
+  if (!r.changes) return res.status(404).json({ message: 'Kiosque introuvable' });
+  res.json({ message: 'Kiosque révoqué' });
 });
 
 module.exports = router;
