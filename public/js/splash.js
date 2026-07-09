@@ -1,5 +1,10 @@
 // Thème + animation d'ouverture Ohipa. Chargé sur chaque page.
 (function () {
+  // --- PWA : enregistre le service worker (installabilité + hors-ligne) ---
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => navigator.serviceWorker.register('/sw.js').catch(() => {}));
+  }
+
   // --- Thème (appliqué au plus tôt pour éviter le flash) ---
   if (localStorage.getItem('ohipa_theme') === 'light') {
     document.documentElement.setAttribute('data-theme', 'light');

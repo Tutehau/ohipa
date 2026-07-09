@@ -1,4 +1,8 @@
 // Badgeuse Ohipa — autonome, authentifiée par un jeton d'appareil (pas de session).
+// PWA : la badgeuse peut aussi s'installer en plein écran sur la tablette.
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => navigator.serviceWorker.register('/sw.js').catch(() => {}));
+}
 const TOKEN_KEY = 'ohipa_kiosk_token';
 let token = localStorage.getItem(TOKEN_KEY) || '';
 let pin = '';
