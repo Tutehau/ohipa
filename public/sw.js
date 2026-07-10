@@ -1,6 +1,6 @@
 // Service worker Ohipa — installabilité PWA + coquille hors-ligne.
 // Bump la version pour forcer la mise à jour du cache lors d'un déploiement.
-const CACHE = 'ohipa-v2';
+const CACHE = 'ohipa-v3';
 const SHELL = [
   '/', '/dashboard.html', '/pointage.html', '/planning.html', '/history.html',
   '/reports.html', '/login.html',
@@ -34,19 +34,13 @@ self.addEventListener('fetch', (e) => {
   if (url.origin !== self.location.origin) return;     // CDN => réseau
   if (url.pathname.startsWith('/api/')) return;        // API => toujours réseau (données fraîches)
 
-  // Navigations HTML : réseau d'abord (contenu à jour), repli sur le cache hors-ligne.
-  if (req.mode === 'navigate') {
-    e.respondWith(
-      fetch(req)
-        .then((resp) => { cachePut(req, resp.clone()); return resp; })
-        .catch(() => caches.match(req).then((r) => r || caches.match('/dashboard.html')))
-    );
-    return;
-  }
-
-  // Assets statiques : cache d'abord, sinon réseau (et on met en cache).
+  // RÉSEAU D'ABORD pour TOUT (HTML, JS, CSS) : on sert toujours le code le plus
+  // récent quand il y a du réseau. Le cache ne sert que de repli hors-ligne.
+  // (Évite le bug de code périmé après un déploiement.)
   e.respondWith(
-    caches.match(req).then((r) => r || fetch(req).then((resp) => { cachePut(req, resp.clone()); return resp; }))
+    fetch(req)
+      .then((resp) => { cachePut(req, resp.clone()); return resp; })
+      .catch(() => caches.match(req).then((r) => r || (req.mode === 'navigate' ? caches.match('/dashboard.html') : undefined)))
   );
 });
 

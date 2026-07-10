@@ -1,115 +1,105 @@
 let companies = [];
 let timer = null;
-let tickFrom = null;
 
-const todayStr = () => new Date().toLocaleDateString('sv-SE'); // YYYY-MM-DD local
-
+const roundH = (n) => Math.round((n || 0) * 100) / 100;
+const localDate = () => new Date().toLocaleDateString('sv-SE');
+const fmtTime = (iso) => new Date(iso).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 function fmtDuration(ms) {
   const s = Math.max(0, Math.floor(ms / 1000));
-  const h = String(Math.floor(s / 3600)).padStart(2, '0');
-  const m = String(Math.floor((s % 3600) / 60)).padStart(2, '0');
-  const sec = String(s % 60).padStart(2, '0');
-  return `${h}:${m}:${sec}`;
+  const p = (n) => String(n).padStart(2, '0');
+  return `${p(Math.floor(s / 3600))}:${p(Math.floor((s % 3600) / 60))}:${p(s % 60)}`;
 }
-const fmtTime = (iso) => new Date(iso).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-const roundH = (n) => Math.round((n || 0) * 100) / 100;
 
 async function loadCompanies(selectedId) {
   companies = await api('/api/companies');
   const sel = document.getElementById('company-select');
   sel.innerHTML = companies.length
-    ? companies.map(c => `<option value="${escapeHtml(c.id)}"${c.id === selectedId ? ' selected' : ''}>${escapeHtml(c.name)}</option>`).join('')
+    ? companies.map((c) => `<option value="${escapeHtml(c.id)}"${c.id === selectedId ? ' selected' : ''}>${escapeHtml(c.name)}</option>`).join('')
     : '<option value="">— Aucune société —</option>';
 }
 
-function startTimer(fromIso) {
+function stopTimer() { if (timer) clearInterval(timer); timer = null; document.getElementById('hero-timer').textContent = '00:00:00'; }
+function startTimer(sinceIso) {
   stopTimer();
-  tickFrom = fromIso;
-  const tick = () => {
-    document.getElementById('live-timer').textContent = fmtDuration(Date.now() - new Date(tickFrom).getTime());
-  };
-  tick();
-  timer = setInterval(tick, 1000);
+  const tick = () => { document.getElementById('hero-timer').textContent = fmtDuration(Date.now() - new Date(sinceIso).getTime()); };
+  tick(); timer = setInterval(tick, 1000);
 }
-function stopTimer() {
-  if (timer) clearInterval(timer);
-  timer = null;
-  document.getElementById('live-timer').textContent = '00:00:00';
-}
-
 const show = (id, on) => document.getElementById(id).classList.toggle('d-none', !on);
 
 async function refreshStatus() {
   const st = await api('/api/pointages/status');
-  const label = document.getElementById('status-label');
+  const label = document.getElementById('hero-status');
+  const timerEl = document.getElementById('hero-timer');
   const sel = document.getElementById('company-select');
-  const timerEl = document.getElementById('live-timer');
-
   if (st.state === 'working') {
     label.innerHTML = `<span class="text-success"><i class="bi bi-record-circle me-1"></i>En poste depuis ${fmtTime(st.since)}</span>`;
-    timerEl.className = 'display-6 fw-bold mb-3 text-success';
-    sel.disabled = true;
-    if (st.companyId) sel.value = st.companyId;
+    timerEl.className = 'hero-timer text-success';
+    sel.disabled = true; if (st.companyId) sel.value = st.companyId;
     show('btn-in', false); show('btn-resume', false); show('btn-pause', true); show('btn-out', true);
     startTimer(st.since);
   } else if (st.state === 'on_break') {
     label.innerHTML = `<span class="text-warning"><i class="bi bi-cup-hot me-1"></i>En pause depuis ${fmtTime(st.since)}</span>`;
-    timerEl.className = 'display-6 fw-bold mb-3 text-warning';
-    sel.disabled = true;
-    if (st.companyId) sel.value = st.companyId;
+    timerEl.className = 'hero-timer text-warning';
+    sel.disabled = true; if (st.companyId) sel.value = st.companyId;
     show('btn-in', false); show('btn-resume', true); show('btn-pause', false); show('btn-out', true);
     startTimer(st.since);
   } else {
     label.innerHTML = `<span class="text-muted"><i class="bi bi-pause-circle me-1"></i>Non pointé</span>`;
-    timerEl.className = 'display-6 fw-bold mb-3';
+    timerEl.className = 'hero-timer';
     sel.disabled = false;
     show('btn-in', true); show('btn-resume', false); show('btn-pause', false); show('btn-out', false);
     stopTimer();
   }
 }
 
-async function loadToday() {
-  const all = await api('/api/pointages');
-  const today = todayStr();
-  const mine = all
-    .filter(p => new Date(p.clockIn).toLocaleDateString('sv-SE') === today)
-    .sort((a, b) => new Date(a.clockIn) - new Date(b.clockIn)); // ordre chronologique
+async function refreshToday() {
+  const today = localDate();
+  const [pointages, plannings] = await Promise.all([api('/api/pointages'), api('/api/plannings')]);
+  const segs = pointages.filter((p) => p.workDate === today).sort((a, b) => new Date(a.clockIn) - new Date(b.clockIn));
 
-  const ul = document.getElementById('segments');
   let worked = 0, breakMs = 0;
-
-  for (let i = 0; i < mine.length; i++) {
-    const p = mine[i];
-    if (p.clockOut) worked += p.hours;
-    // Temps de pause = écart entre une fin "pause" et la reprise suivante.
-    if (p.endReason === 'pause' && p.clockOut && mine[i + 1]) {
-      breakMs += new Date(mine[i + 1].clockIn) - new Date(p.clockOut);
-    }
+  for (let i = 0; i < segs.length; i++) {
+    if (segs[i].clockOut) worked += segs[i].hours;
+    if (segs[i].endReason === 'pause' && segs[i].clockOut && segs[i + 1]) breakMs += new Date(segs[i + 1].clockIn) - new Date(segs[i].clockOut);
   }
+  const planned = plannings.filter((s) => s.date === today).reduce((sum, s) => sum + s.hours, 0);
 
-  if (!mine.length) {
-    ul.innerHTML = `<li class="list-group-item text-muted text-center py-3"><i class="bi bi-inbox me-1"></i>Aucun pointage aujourd'hui.</li>`;
-  } else {
-    ul.innerHTML = mine.map(p => {
-      const done = !!p.clockOut;
-      const dur = done ? `${roundH(p.hours)}h` : '<span class="text-success">en cours…</span>';
-      const tag = p.endReason === 'pause'
-        ? '<span class="badge bg-warning text-dark ms-2"><i class="bi bi-cup-hot"></i> pause</span>'
-        : (p.endReason === 'depart' ? '<span class="badge bg-secondary ms-2">départ</span>' : '');
-      return `<li class="list-group-item d-flex justify-content-between align-items-center flex-wrap gap-2">
-        <span><i class="bi bi-arrow-right-short text-success"></i>${escapeHtml(fmtTime(p.clockIn))}
-          <i class="bi bi-arrow-right-short text-danger ms-2"></i>${done ? escapeHtml(fmtTime(p.clockOut)) : '—'}
-          <small class="text-muted ms-2">${escapeHtml(p.companyName || '')}</small>${tag}</span>
-        <span class="d-flex align-items-center gap-2"><span class="fw-semibold">${dur}</span>
-          <button class="btn btn-sm btn-outline-danger" data-del="${escapeHtml(p.id)}" title="Supprimer"><i class="bi bi-trash"></i></button></span>
-      </li>`;
-    }).join('');
-  }
-  document.getElementById('today-total').textContent = `${roundH(worked)}h`;
-  document.getElementById('today-break').textContent = `Pause ${roundH(breakMs / 3600000)}h`;
+  document.getElementById('today-worked').textContent = roundH(worked) + 'h';
+  document.getElementById('today-planned').textContent = roundH(planned) + 'h';
+  document.getElementById('today-break').textContent = roundH(breakMs / 3600000) + 'h';
+  document.getElementById('today-segments').textContent = segs.length;
+  const pct = planned > 0 ? Math.min(100, Math.round((worked / planned) * 100)) : 0;
+  const bar = document.getElementById('today-progress');
+  bar.style.width = pct + '%';
+  bar.className = 'progress-bar ' + (worked >= planned && planned > 0 ? 'bg-success' : '');
+
+  renderTimeline(segs);
 }
 
-async function refreshAll() { await refreshStatus(); await loadToday(); }
+function renderTimeline(segs) {
+  const ul = document.getElementById('segments');
+  if (!segs.length) {
+    ul.innerHTML = `<li class="text-muted text-center py-3"><i class="bi bi-inbox me-1"></i>Aucun pointage aujourd'hui.</li>`;
+    return;
+  }
+  ul.innerHTML = segs.map((p) => {
+    const done = !!p.clockOut;
+    const tag = p.endReason === 'pause' ? '<span class="badge bg-warning ms-2"><i class="bi bi-cup-hot"></i> pause</span>'
+      : p.endReason === 'oubli' ? '<span class="badge bg-danger ms-2"><i class="bi bi-exclamation-triangle"></i> oubli</span>'
+      : p.endReason === 'depart' ? '<span class="badge bg-secondary ms-2">départ</span>' : '';
+    const dotColor = !done ? 'var(--success)' : (p.endReason === 'oubli' ? 'var(--danger)' : 'var(--blue)');
+    return `<li class="timeline-item">
+      <span class="tl-dot" style="background:${dotColor}"></span>
+      <div class="tl-body">
+        <div><b>${escapeHtml(fmtTime(p.clockIn))}</b> <i class="bi bi-arrow-right text-muted mx-1"></i>${done ? '<b>' + escapeHtml(fmtTime(p.clockOut)) + '</b>' : '<span class="text-success">en cours…</span>'}${tag}</div>
+        <small class="text-muted">${escapeHtml(p.companyName || 'Sans société')}${done ? ' · ' + roundH(p.hours) + 'h' : ''}</small>
+      </div>
+      <button class="btn btn-sm btn-outline-danger" data-del="${escapeHtml(p.id)}" title="Supprimer"><i class="bi bi-trash"></i></button>
+    </li>`;
+  }).join('');
+}
+
+async function refreshAll() { await Promise.all([refreshStatus(), refreshToday()]); }
 
 (async () => {
   const me = await requireAuth();
@@ -120,18 +110,12 @@ async function refreshAll() { await refreshStatus(); await loadToday(); }
 
   const post = async (url, body) => { await api(url, 'POST', body); await refreshAll(); };
   const companyId = () => document.getElementById('company-select').value || null;
-  // On envoie la date locale du navigateur : le jour de travail est calculé
-  // dans le fuseau de l'utilisateur, où qu'il soit dans le monde.
-  const clockIn = () => post('/api/pointages/clock-in', { companyId: companyId(), date: todayStr() })
-    .catch(e => showAlert(e.message));
+  const clockIn = () => post('/api/pointages/clock-in', { companyId: companyId(), date: localDate() }).catch((e) => showAlert(e.message));
 
   document.getElementById('btn-in').onclick = clockIn;
   document.getElementById('btn-resume').onclick = clockIn;
-  document.getElementById('btn-pause').onclick = () =>
-    post('/api/pointages/pause').catch(e => showAlert(e.message));
-  document.getElementById('btn-out').onclick = () =>
-    post('/api/pointages/clock-out').catch(e => showAlert(e.message));
-
+  document.getElementById('btn-pause').onclick = () => post('/api/pointages/pause').catch((e) => showAlert(e.message));
+  document.getElementById('btn-out').onclick = () => post('/api/pointages/clock-out').catch((e) => showAlert(e.message));
   document.getElementById('btn-add-company').onclick = async () => {
     const name = prompt('Nom de la nouvelle société :');
     if (!name || !name.trim()) return;

@@ -18,56 +18,60 @@
 <body>
   <script src="js/splash.js"></script>
   <nav id="topnav" class="navbar navbar-expand-lg navbar-dark bg-dark mb-4"></nav>
-  <div class="container">
+  <div class="container pb-4">
     <h2 class="mb-4"><i class="bi bi-fingerprint me-2"></i>Pointage</h2>
-    <div id="alert" class="d-none" role="alert"></div>
+    <div id="alert" class="alert-toast d-none" role="alert"></div>
 
     <div class="row g-3">
-      <!-- Carte de pointage -->
-      <div class="col-md-5">
-        <div class="card p-4 shadow-sm text-center">
-          <div class="text-muted small mb-1"><i class="bi bi-clock me-1"></i>Statut</div>
-          <div id="status-label" class="fs-5 fw-semibold mb-1">—</div>
-          <div id="live-timer" class="display-6 fw-bold mb-3" style="font-variant-numeric:tabular-nums">00:00:00</div>
-
-          <div class="mb-3 text-start">
-            <label class="form-label">Société</label>
-            <div class="input-group">
-              <select id="company-select" class="form-select"></select>
-              <button class="btn btn-outline-light" id="btn-add-company" type="button" title="Nouvelle société">
-                <i class="bi bi-plus-lg"></i>
-              </button>
+      <!-- HERO pointage -->
+      <div class="col-lg-8">
+        <div class="card hero-card p-4 shadow-sm h-100">
+          <div class="row align-items-center g-4">
+            <div class="col-sm-6 text-center text-sm-start">
+              <div class="text-muted small mb-1"><i class="bi bi-clock me-1"></i>Statut</div>
+              <div id="hero-status" class="fs-5 fw-semibold mb-1">—</div>
+              <div id="hero-timer" class="hero-timer" style="font-variant-numeric:tabular-nums">00:00:00</div>
+            </div>
+            <div class="col-sm-6">
+              <label class="form-label">Société</label>
+              <div class="input-group mb-2">
+                <select id="company-select" class="form-select"></select>
+                <button class="btn btn-outline-light" id="btn-add-company" type="button" title="Nouvelle société"><i class="bi bi-plus-lg"></i></button>
+              </div>
+              <div class="d-grid gap-2">
+                <button id="btn-in" class="btn btn-success btn-lg d-none"><i class="bi bi-box-arrow-in-right me-1"></i>Pointer l'arrivée</button>
+                <button id="btn-resume" class="btn btn-success btn-lg d-none"><i class="bi bi-play-fill me-1"></i>Reprendre</button>
+                <div class="row g-2">
+                  <div class="col"><button id="btn-pause" class="btn btn-warning w-100 d-none"><i class="bi bi-pause-fill me-1"></i>Pause</button></div>
+                  <div class="col"><button id="btn-out" class="btn btn-danger w-100 d-none"><i class="bi bi-box-arrow-right me-1"></i>Départ</button></div>
+                </div>
+              </div>
             </div>
           </div>
-
-          <button id="btn-in" class="btn btn-success btn-lg w-100 mb-2 d-none">
-            <i class="bi bi-box-arrow-in-right me-1"></i>Pointer l'arrivée
-          </button>
-          <button id="btn-resume" class="btn btn-success btn-lg w-100 mb-2 d-none">
-            <i class="bi bi-play-fill me-1"></i>Reprendre
-          </button>
-          <button id="btn-pause" class="btn btn-warning btn-lg w-100 mb-2 d-none">
-            <i class="bi bi-pause-fill me-1"></i>Prendre une pause
-          </button>
-          <button id="btn-out" class="btn btn-danger btn-lg w-100 d-none">
-            <i class="bi bi-box-arrow-right me-1"></i>Pointer le départ
-          </button>
         </div>
       </div>
 
-      <!-- Segments du jour -->
-      <div class="col-md-7">
-        <div class="card p-4 shadow-sm">
-          <div class="d-flex justify-content-between align-items-center mb-3">
-            <h5 class="mb-0"><i class="bi bi-list-check me-2"></i>Aujourd'hui</h5>
-            <span>
-              <span class="badge bg-warning text-dark fs-6 me-1" id="today-break" title="Temps de pause">Pause 0h</span>
-              <span class="badge bg-primary fs-6" id="today-total" title="Temps travaillé">0h</span>
-            </span>
+      <!-- Résumé du jour -->
+      <div class="col-lg-4">
+        <div class="card p-4 shadow-sm h-100">
+          <h6 class="mb-2"><i class="bi bi-sun me-2"></i>Aujourd'hui</h6>
+          <div class="d-flex align-items-baseline gap-2">
+            <span class="display-6 fw-bold" id="today-worked">0h</span>
+            <span class="text-muted">/ <span id="today-planned">0h</span> prévues</span>
           </div>
-          <ul id="segments" class="list-group list-group-flush"></ul>
+          <div class="progress mt-2" style="height:10px"><div id="today-progress" class="progress-bar" style="width:0%"></div></div>
+          <div class="d-flex justify-content-between mt-2 small">
+            <span class="text-muted"><i class="bi bi-cup-hot me-1"></i>Pause <b id="today-break">0h</b></span>
+            <span class="text-muted"><i class="bi bi-list-check me-1"></i><b id="today-segments">0</b> segments</span>
+          </div>
         </div>
       </div>
+    </div>
+
+    <!-- Timeline du jour -->
+    <div class="card p-4 shadow-sm mt-3">
+      <h6 class="mb-3"><i class="bi bi-hourglass-split me-2"></i>Déroulé de la journée</h6>
+      <ul id="segments" class="timeline list-unstyled mb-0"></ul>
     </div>
   </div>
 

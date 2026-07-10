@@ -18,57 +18,67 @@
 <body>
   <script src="js/splash.js"></script>
   <nav id="topnav" class="navbar navbar-expand-lg navbar-dark bg-dark mb-4"></nav>
-  <div class="container">
-    <h2 class="mb-4"><i class="bi bi-calendar-week me-2"></i>Mon planning</h2>
-    <div id="alert" class="d-none" role="alert"></div>
+  <div class="container pb-4">
+    <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
+      <h2 class="mb-0"><i class="bi bi-calendar-week me-2"></i>Mon planning</h2>
+      <button class="btn btn-primary" id="btn-new"><i class="bi bi-plus-lg me-1"></i>Nouveau créneau</button>
+    </div>
+    <div id="alert" class="alert-toast d-none" role="alert"></div>
 
-    <div class="row g-3">
-      <!-- Formulaire créneau -->
-      <div class="col-md-5">
-        <div class="card p-4 shadow-sm">
-          <h5 class="mb-3" id="form-title"><i class="bi bi-plus-circle me-2"></i>Nouveau créneau</h5>
-          <form id="slot-form">
+    <div class="card p-3 p-md-4 shadow-sm">
+      <!-- Navigation de semaine -->
+      <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+        <div class="btn-group btn-group-sm">
+          <button class="btn btn-outline-light" id="week-prev"><i class="bi bi-chevron-left"></i></button>
+          <button class="btn btn-outline-light" id="week-today">Cette semaine</button>
+          <button class="btn btn-outline-light" id="week-next"><i class="bi bi-chevron-right"></i></button>
+        </div>
+        <div class="fw-semibold" id="week-label">—</div>
+        <span class="badge bg-primary fs-6">Total <b id="week-total">0h</b></span>
+      </div>
+      <!-- Grille -->
+      <div class="cal-grid" id="cal-grid"></div>
+    </div>
+  </div>
+
+  <!-- Modale ajout / édition -->
+  <div class="modal fade" id="slot-modal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content card">
+        <div class="modal-header border-0">
+          <h5 class="modal-title" id="modal-title"><i class="bi bi-plus-circle me-2"></i>Nouveau créneau</h5>
+          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+        </div>
+        <form id="slot-form">
+          <div class="modal-body">
             <input type="hidden" id="slot-id">
             <div class="mb-3">
               <label class="form-label">Société</label>
               <div class="input-group">
-                <select id="company-select" class="form-select"></select>
-                <button class="btn btn-outline-light" id="btn-add-company" type="button" title="Nouvelle société"><i class="bi bi-plus-lg"></i></button>
+                <select id="slot-company" class="form-select"></select>
+                <button class="btn btn-outline-light" id="btn-add-company" type="button"><i class="bi bi-plus-lg"></i></button>
               </div>
             </div>
-            <div class="mb-3">
-              <label class="form-label">Date</label>
-              <input type="date" id="slot-date" class="form-control" required>
-            </div>
+            <div class="mb-3"><label class="form-label">Date</label><input type="date" id="slot-date" class="form-control" required></div>
             <div class="row g-2 mb-3">
               <div class="col"><label class="form-label">Début</label><input type="time" id="slot-start" class="form-control" required></div>
               <div class="col"><label class="form-label">Fin</label><input type="time" id="slot-end" class="form-control" required></div>
             </div>
-            <div class="mb-3">
-              <label class="form-label">Note (optionnel)</label>
-              <input type="text" id="slot-note" class="form-control" maxlength="300">
-            </div>
-            <div class="d-flex gap-2">
-              <button type="submit" class="btn btn-primary flex-grow-1"><i class="bi bi-save me-1"></i><span id="submit-label">Ajouter</span></button>
-              <button type="button" id="btn-cancel" class="btn btn-outline-light d-none">Annuler</button>
-            </div>
-          </form>
-        </div>
-      </div>
-
-      <!-- Liste des créneaux -->
-      <div class="col-md-7">
-        <div class="card p-4 shadow-sm">
-          <div class="d-flex justify-content-between align-items-center mb-3">
-            <h5 class="mb-0"><i class="bi bi-list-ul me-2"></i>Créneaux prévus</h5>
-            <span class="badge bg-primary fs-6" id="total-planned">0h</span>
+            <div class="mb-3"><label class="form-label">Note (optionnel)</label><input type="text" id="slot-note" class="form-control" maxlength="300"></div>
           </div>
-          <ul id="slots" class="list-group list-group-flush"></ul>
-        </div>
+          <div class="modal-footer border-0 justify-content-between">
+            <button type="button" id="btn-delete" class="btn btn-outline-danger d-none"><i class="bi bi-trash me-1"></i>Supprimer</button>
+            <div class="d-flex gap-2 ms-auto">
+              <button type="button" class="btn btn-outline-light" data-bs-dismiss="modal">Annuler</button>
+              <button type="submit" class="btn btn-primary"><i class="bi bi-save me-1"></i>Enregistrer</button>
+            </div>
+          </div>
+        </form>
       </div>
     </div>
   </div>
 
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js" integrity="sha384-geWF76RCwLtnZ8qwWowPQNguL3RmwHVBC9FhGdlKrxdiJJigb/j/68SIy3Te4Bkz" crossorigin="anonymous"></script>
   <script src="js/api.js"></script>
   <script src="js/nav.js"></script>
   <script src="js/planning.js"></script>
