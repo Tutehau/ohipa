@@ -34,8 +34,15 @@ async function loadCompanies(selectedId) {
 }
 
 let weekSlots = [];
+let daysCache = [];
+let byDayCache = {};
+let selectedDay = null;
+
+const slotsOf = (iso) => (byDayCache[iso] || []).slice().sort((a, b) => a.startTime.localeCompare(b.startTime));
+
 async function loadWeek() {
   const days = weekDays(weekOffset);
+  daysCache = days;
   document.getElementById('week-label').textContent =
     weekOffset === 0 ? 'Cette semaine' : `${days[0].num} – ${days[6].num}`;
   document.getElementById('week-today').classList.toggle('active', weekOffset === 0);
@@ -43,6 +50,12 @@ async function loadWeek() {
   weekSlots = await api(`/api/plannings?from=${days[0].iso}&to=${days[6].iso}`);
   const byDay = {};
   for (const s of weekSlots) (byDay[s.date] ||= []).push(s);
+  byDayCache = byDay;
+
+  // Jour sélectionné (mobile) : aujourd'hui si dans la semaine, sinon 1er jour.
+  const today = isoOf(new Date());
+  selectedDay = days.some((d) => d.iso === today) ? today : days[0].iso;
+  renderMobile();
 
   const grid = document.getElementById('cal-grid');
   grid.innerHTML = days.map((d) => {
@@ -60,6 +73,28 @@ async function loadWeek() {
   }).join('');
 
   document.getElementById('week-total').textContent = roundH(weekSlots.reduce((s, x) => s + x.hours, 0)) + 'h';
+}
+
+// Vue mobile : bande de 7 jours + détail du jour sélectionné.
+function renderMobile() {
+  document.getElementById('day-strip').innerHTML = daysCache.map((d) => {
+    const has = slotsOf(d.iso).length > 0;
+    return `<div class="day-pill ${d.iso === selectedDay ? 'active' : ''} ${d.isToday ? 'is-today' : ''}" data-day="${escapeHtml(d.iso)}">
+      ${escapeHtml(d.name)}<span class="dn">${escapeHtml(d.num.slice(0, 2))}</span>
+      <span class="dot" style="${has ? '' : 'visibility:hidden'}"></span>
+    </div>`;
+  }).join('');
+
+  const slots = slotsOf(selectedDay);
+  const head = new Date(selectedDay + 'T00:00:00').toLocaleDateString('fr-FR', { weekday: 'long', day: '2-digit', month: 'long' });
+  const list = slots.length ? slots.map((s) => `
+    <div class="cal-slot" data-id="${escapeHtml(s.id)}">
+      <div class="t">${escapeHtml(s.startTime)}–${escapeHtml(s.endTime)} <span class="text-muted">· ${roundH(s.hours)}h</span></div>
+      <div class="c">${escapeHtml(s.companyName || 'Sans société')}${s.note ? ' · ' + escapeHtml(s.note) : ''}</div>
+    </div>`).join('') : '<div class="text-muted text-center py-4"><i class="bi bi-inbox me-1"></i>Aucun créneau ce jour.</div>';
+  document.getElementById('day-detail').innerHTML =
+    `<div class="day-detail-head"><i class="bi bi-calendar3 me-2"></i>${escapeHtml(head)}</div>${list}
+     <button class="btn btn-outline-light w-100 mt-2" id="day-add"><i class="bi bi-plus-lg me-1"></i>Ajouter un créneau</button>`;
 }
 
 function openNew(date) {
@@ -104,6 +139,18 @@ function openEdit(slot) {
     const slotEl = ev.target.closest('.cal-slot');
     if (add) openNew(add.dataset.add);
     else if (slotEl) { const s = weekSlots.find((x) => x.id === slotEl.dataset.id); if (s) openEdit(s); }
+  });
+
+  // Vue mobile : sélection de jour + actions sur le détail.
+  document.getElementById('day-strip').addEventListener('click', (ev) => {
+    const pill = ev.target.closest('.day-pill');
+    if (!pill) return;
+    selectedDay = pill.dataset.day; renderMobile();
+  });
+  document.getElementById('day-detail').addEventListener('click', (ev) => {
+    if (ev.target.closest('#day-add')) return openNew(selectedDay);
+    const slotEl = ev.target.closest('.cal-slot');
+    if (slotEl) { const s = weekSlots.find((x) => x.id === slotEl.dataset.id); if (s) openEdit(s); }
   });
 
   document.getElementById('slot-form').onsubmit = async (e) => {

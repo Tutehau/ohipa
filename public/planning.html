@@ -36,8 +36,14 @@
         <div class="fw-semibold" id="week-label">—</div>
         <span class="badge bg-primary fs-6">Total <b id="week-total">0h</b></span>
       </div>
-      <!-- Grille -->
-      <div class="cal-grid" id="cal-grid"></div>
+      <!-- Grille (desktop) -->
+      <div class="cal-grid d-none d-md-grid" id="cal-grid"></div>
+
+      <!-- Vue mobile : bande de jours + détail du jour sélectionné -->
+      <div class="d-md-none" id="cal-mobile">
+        <div class="day-strip" id="day-strip"></div>
+        <div id="day-detail" class="mt-3"></div>
+      </div>
     </div>
   </div>
 

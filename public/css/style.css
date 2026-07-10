@@ -186,10 +186,21 @@ a:focus-visible, button:focus-visible, .btn:focus-visible,
 .cal-slot:hover { transform: translateY(-1px); }
 .cal-slot .t { font-weight: 700; font-size: .82rem; }
 .cal-slot .c { font-size: .72rem; color: var(--text-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-@media (max-width: 767.98px) {
-  .cal-grid { grid-template-columns: 1fr; }
-  .cal-day { min-height: auto; }
+/* Vue mobile du planning : bande de jours sélectionnables */
+.day-strip { display: flex; gap: 5px; }
+.day-pill {
+  flex: 1; min-width: 0; text-align: center; padding: .45rem .1rem;
+  border: 1px solid var(--border); background: var(--surface-2); color: var(--text-muted);
+  border-radius: 12px; cursor: pointer; font-size: .68rem; line-height: 1.1;
+  -webkit-tap-highlight-color: transparent;
 }
+.day-pill .dn { display: block; font-weight: 700; font-size: 1rem; color: var(--text); }
+.day-pill.active { background: var(--grad); border-color: transparent; color: rgba(255,255,255,.85); }
+.day-pill.active .dn { color: #fff; }
+.day-pill .dot { width: 5px; height: 5px; border-radius: 50%; background: var(--cyan); margin: 3px auto 0; }
+.day-pill.active .dot { background: #fff; }
+.day-pill.is-today:not(.active) { border-color: var(--blue); }
+.day-detail-head { font-weight: 600; text-transform: capitalize; margin-bottom: .6rem; }
 
 /* Alerte flottante (toast) pour le tableau de bord */
 .alert-toast {
