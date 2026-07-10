@@ -94,6 +94,48 @@ router.get('/pointages', isAuth, (req, res) => {
     ${where} ORDER BY p.clock_in DESC`).all(params));
 });
 
+// Valide un couple arrivée/départ (ISO) : présents, ordonnés, même journée raisonnable.
+function validSegment(clockIn, clockOut) {
+  const a = Date.parse(clockIn), b = Date.parse(clockOut);
+  if (isNaN(a) || isNaN(b)) return 'Horaires invalides';
+  if (b <= a) return 'Le départ doit être après l\'arrivée';
+  if (b - a > 24 * 3600 * 1000) return 'Segment trop long (> 24h)';
+  return null;
+}
+
+// Ajout MANUEL d'un pointage terminé (rattraper un jour oublié).
+router.post('/pointages/manual', isAuth, (req, res) => {
+  const { companyId, date, clockIn, clockOut } = req.body;
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date || '')) return res.status(400).json({ message: 'Date invalide' });
+  const err = validSegment(clockIn, clockOut);
+  if (err) return res.status(400).json({ message: err });
+  if (!companyExists(companyId)) return res.status(400).json({ message: 'Société inconnue' });
+  const id = crypto.randomUUID();
+  db.prepare(`INSERT INTO pointages (id, user_id, company_id, work_date, clock_in, clock_out, end_reason, created_at)
+              VALUES (?, ?, ?, ?, ?, ?, 'depart', ?)`)
+    .run(id, req.session.userId, companyId || null, date, clockIn, clockOut, new Date().toISOString());
+  res.json({ id });
+});
+
+// Édition (correction) d'un pointage : arrivée / départ / société / jour.
+router.put('/pointages/:id', isAuth, (req, res) => {
+  const p = db.prepare('SELECT * FROM pointages WHERE id = ?').get(req.params.id);
+  if (!p) return res.status(404).json({ message: 'Pointage introuvable' });
+  if (p.user_id !== req.session.userId && req.session.role !== 'admin') {
+    return res.status(403).json({ message: 'Action non autorisée' });
+  }
+  const { companyId, date, clockIn, clockOut } = req.body;
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date || '')) return res.status(400).json({ message: 'Date invalide' });
+  const err = validSegment(clockIn, clockOut);
+  if (err) return res.status(400).json({ message: err });
+  if (!companyExists(companyId)) return res.status(400).json({ message: 'Société inconnue' });
+  // Un segment édité est considéré terminé ; on conserve la raison de fin si présente.
+  db.prepare(`UPDATE pointages SET company_id = ?, work_date = ?, clock_in = ?, clock_out = ?,
+              end_reason = COALESCE(end_reason, 'depart') WHERE id = ?`)
+    .run(companyId || null, date, clockIn, clockOut, req.params.id);
+  res.json({ message: 'Pointage mis à jour' });
+});
+
 router.delete('/pointages/:id', isAuth, (req, res) => {
   const p = db.prepare('SELECT * FROM pointages WHERE id = ?').get(req.params.id);
   if (!p) return res.status(404).json({ message: 'Pointage introuvable' });

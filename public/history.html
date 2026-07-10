@@ -18,17 +18,53 @@
 <body>
   <script src="js/splash.js"></script>
   <nav id="topnav" class="navbar navbar-expand-lg navbar-dark bg-dark mb-4"></nav>
-  <div class="container">
-    <div class="d-flex justify-content-between align-items-center mb-4">
-      <h2 class="mb-0"><i class="bi bi-list-ul me-2"></i>Historique des pointages</h2>
-      <a href="pointage.html" class="btn btn-primary">
-        <i class="bi bi-fingerprint me-1"></i>Pointer
-      </a>
+  <div class="container pb-4">
+    <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-4">
+      <h2 class="mb-0"><i class="bi bi-list-ul me-2"></i>Historique</h2>
+      <div class="d-flex gap-2">
+        <button class="btn btn-outline-light" id="btn-add"><i class="bi bi-plus-lg me-1"></i>Ajouter</button>
+        <a href="pointage.html" class="btn btn-primary"><i class="bi bi-fingerprint me-1"></i>Pointer</a>
+      </div>
     </div>
-    <div id="alert" class="d-none" role="alert"></div>
+    <p class="text-muted small"><i class="bi bi-info-circle me-1"></i>Corrige une heure ou ajoute un pointage oublié en cliquant dessus.</p>
+    <div id="alert" class="alert-toast d-none" role="alert"></div>
     <div id="history"></div>
   </div>
 
+  <!-- Modale ajout / édition -->
+  <div class="modal fade" id="seg-modal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content card">
+        <div class="modal-header border-0">
+          <h5 class="modal-title" id="seg-title"><i class="bi bi-plus-circle me-2"></i>Ajouter un pointage</h5>
+          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+        </div>
+        <form id="seg-form">
+          <div class="modal-body">
+            <input type="hidden" id="seg-id">
+            <div class="mb-3">
+              <label class="form-label">Société</label>
+              <select id="seg-company" class="form-select"></select>
+            </div>
+            <div class="mb-3"><label class="form-label">Date</label><input type="date" id="seg-date" class="form-control" required></div>
+            <div class="row g-2 mb-1">
+              <div class="col"><label class="form-label">Arrivée</label><input type="time" id="seg-start" class="form-control" required></div>
+              <div class="col"><label class="form-label">Départ</label><input type="time" id="seg-end" class="form-control" required></div>
+            </div>
+          </div>
+          <div class="modal-footer border-0 justify-content-between">
+            <button type="button" id="seg-delete" class="btn btn-outline-danger d-none"><i class="bi bi-trash me-1"></i>Supprimer</button>
+            <div class="d-flex gap-2 ms-auto">
+              <button type="button" class="btn btn-outline-light" data-bs-dismiss="modal">Annuler</button>
+              <button type="submit" class="btn btn-primary"><i class="bi bi-save me-1"></i>Enregistrer</button>
+            </div>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js" integrity="sha384-geWF76RCwLtnZ8qwWowPQNguL3RmwHVBC9FhGdlKrxdiJJigb/j/68SIy3Te4Bkz" crossorigin="anonymous"></script>
   <script src="js/api.js"></script>
   <script src="js/nav.js"></script>
   <script src="js/history.js"></script>

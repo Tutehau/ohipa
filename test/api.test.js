@@ -343,6 +343,24 @@ test('réconciliation : la pause compte comme présence (écart nul)', async () 
   assert.equal(rec.days[0].ecart, 0, "aucun écart un jour normal avec pause");
 });
 
+test('pointage : ajout manuel + correction + validation', async () => {
+  const c = await makeNormalUser('quinn', 'quinn@test.fr', 'secret1');
+  // Ajout manuel d'un pointage terminé (rattrapage)
+  let r = await c('POST', '/api/pointages/manual', { date: '2026-09-01', clockIn: '2026-09-01T08:00:00.000Z', clockOut: '2026-09-01T12:00:00.000Z' });
+  assert.equal(r.status, 200);
+  const id = r.json.id;
+  const hoursOf = async () => Math.round((await c('GET', '/api/pointages')).json.find((p) => p.id === id).hours * 100) / 100;
+  assert.equal(await hoursOf(), 4);
+
+  // Validation : départ avant arrivée refusé
+  assert.equal((await c('POST', '/api/pointages/manual', { date: '2026-09-01', clockIn: '2026-09-01T12:00:00.000Z', clockOut: '2026-09-01T08:00:00.000Z' })).status, 400);
+
+  // Correction : porter à 5h
+  r = await c('PUT', '/api/pointages/' + id, { date: '2026-09-01', clockIn: '2026-09-01T08:00:00.000Z', clockOut: '2026-09-01T13:00:00.000Z' });
+  assert.equal(r.status, 200);
+  assert.equal(await hoursOf(), 5);
+});
+
 // Utilitaire : récupère un cookie de session pour un appel fetch direct.
 async function loginCookie(username, password) {
   const res = await fetch(base + '/api/login', {
