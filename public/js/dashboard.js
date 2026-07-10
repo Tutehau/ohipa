@@ -2,6 +2,7 @@ let companies = [];
 let weekChart = null;
 let timer = null;
 let weekOffset = 0;   // 0 = semaine courante, -1 = précédente, +1 = suivante
+let dashCompany = ''; // '' = toutes ; sinon les totaux sont pour cette entreprise seule
 
 const roundH = (n) => Math.round((n || 0) * 100) / 100;
 const localDate = () => new Date().toLocaleDateString('sv-SE');
@@ -75,10 +76,13 @@ async function refreshWeek() {
   const fmt = (s) => new Date(s + 'T00:00:00').toLocaleDateString('fr-FR', { day: '2-digit', month: 'short' });
   document.getElementById('week-label').textContent = weekOffset === 0 ? 'Cette semaine' : `${fmt(wk.from)} – ${fmt(wk.to)}`;
   document.getElementById('week-today').classList.toggle('active', weekOffset === 0);
-  const [rec, pointages] = await Promise.all([
-    api(`/api/reconciliation?from=${wk.from}&to=${wk.to}`),
+  const comp = dashCompany ? '&companyId=' + encodeURIComponent(dashCompany) : '';
+  const [rec, allPointages] = await Promise.all([
+    api(`/api/reconciliation?from=${wk.from}&to=${wk.to}${comp}`),
     api('/api/pointages'),
   ]);
+  // Filtre entreprise côté client pour les calculs 'aujourd'hui' (pas de mélange).
+  const pointages = dashCompany ? allPointages.filter((p) => p.companyId === dashCompany) : allPointages;
   const byDay = {};
   for (const d of rec.days) byDay[d.day] = d;
 
@@ -115,7 +119,7 @@ async function refreshWeek() {
 
 // Total cumulé (toutes périodes) — garantit que les données sont toujours visibles.
 async function refreshAllTime() {
-  const rep = await api('/api/reports');
+  const rep = await api('/api/reports' + (dashCompany ? '?companyId=' + encodeURIComponent(dashCompany) : ''));
   document.getElementById('total-all').textContent = roundH(rep.totalHours) + 'h';
   document.getElementById('total-all-sub').textContent = rep.count + ' pointage' + (rep.count > 1 ? 's' : '');
 }
@@ -171,6 +175,13 @@ async function refreshAll() { await Promise.all([refreshStatus(), refreshWeek(),
   document.getElementById('today-date').textContent = new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
 
   await loadCompanies();
+
+  // Sélecteur d'entreprise : scope tous les totaux du dashboard (aucun mélange).
+  const dc = document.getElementById('dash-company');
+  dc.innerHTML = '<option value="">Toutes les entreprises</option>' +
+    companies.map((c) => `<option value="${escapeHtml(c.id)}">${escapeHtml(c.name)}</option>`).join('');
+  dc.onchange = () => { dashCompany = dc.value; refreshWeek(); refreshAllTime(); };
+
   await refreshAll();
 
   // Navigation de semaine (les données des autres semaines restent accessibles).

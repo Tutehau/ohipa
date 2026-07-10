@@ -361,6 +361,23 @@ test('pointage : ajout manuel + correction + validation', async () => {
   assert.equal(await hoursOf(), 5);
 });
 
+test('réconciliation : séparée par entreprise (aucun mélange)', async () => {
+  const crypto = require('node:crypto');
+  const c = await makeNormalUser('rita', 'rita@test.fr', 'secret1');
+  const uid = db.prepare("SELECT id FROM users WHERE username = 'rita'").get().id;
+  const A = (await c('POST', '/api/companies', { name: 'Alpha' })).json.id;
+  const B = (await c('POST', '/api/companies', { name: 'Beta' })).json.id;
+  const ins = db.prepare('INSERT INTO pointages (id,user_id,company_id,work_date,clock_in,clock_out,end_reason,created_at) VALUES (?,?,?,?,?,?,?,?)');
+  ins.run(crypto.randomUUID(), uid, A, '2026-10-01', '2026-10-01T08:00:00.000Z', '2026-10-01T12:00:00.000Z', 'depart', 'x'); // 4h Alpha
+  ins.run(crypto.randomUUID(), uid, B, '2026-10-01', '2026-10-01T13:00:00.000Z', '2026-10-01T16:00:00.000Z', 'depart', 'x'); // 3h Beta
+
+  const round = (n) => Math.round(n * 100) / 100;
+  const q = (extra = '') => c('GET', '/api/reconciliation?from=2026-10-01&to=2026-10-01' + extra).then((r) => round(r.json.totals.real));
+  assert.equal(await q(), 7, 'sans filtre = combiné (4+3)');
+  assert.equal(await q('&companyId=' + A), 4, 'Alpha seule = 4h');
+  assert.equal(await q('&companyId=' + B), 3, 'Beta seule = 3h');
+});
+
 // Utilitaire : récupère un cookie de session pour un appel fetch direct.
 async function loginCookie(username, password) {
   const res = await fetch(base + '/api/login', {

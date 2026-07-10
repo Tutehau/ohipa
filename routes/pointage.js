@@ -152,6 +152,10 @@ router.get('/reconciliation', isAuth, (req, res) => {
   const p = { uid };
   if (req.query.from) p.from = req.query.from;
   if (req.query.to) p.to = req.query.to;
+  // Filtre par entreprise : tout est alors calculé pour cette entreprise SEULE
+  // (aucun mélange entre entreprises dans les totaux / prévu / réel).
+  if (req.query.companyId) p.companyId = req.query.companyId;
+  const compClause = req.query.companyId ? 'AND company_id = @companyId' : '';
 
   const planned = db.prepare(`
     SELECT date AS day,
@@ -159,7 +163,7 @@ router.get('/reconciliation', isAuth, (req, res) => {
          - CAST(substr(start_time,1,2) AS INTEGER)*60 - CAST(substr(start_time,4,2) AS INTEGER)
          + 1440) % 1440 / 60.0) AS planned
     FROM plannings
-    WHERE user_id = @uid
+    WHERE user_id = @uid ${compClause}
       ${req.query.from ? 'AND date >= @from' : ''}
       ${req.query.to ? 'AND date <= @to' : ''}
     GROUP BY date`).all(p);
@@ -169,7 +173,7 @@ router.get('/reconciliation', isAuth, (req, res) => {
   const segs = db.prepare(`
     SELECT ${DAY} AS day, clock_in AS ci, clock_out AS co, end_reason AS reason
     FROM pointages
-    WHERE user_id = @uid AND clock_out IS NOT NULL
+    WHERE user_id = @uid AND clock_out IS NOT NULL ${compClause}
       ${req.query.from ? `AND ${DAY} >= @from` : ''}
       ${req.query.to ? `AND ${DAY} <= @to` : ''}
     ORDER BY clock_in`).all(p);

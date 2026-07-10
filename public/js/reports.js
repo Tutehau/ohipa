@@ -91,9 +91,11 @@ async function renderReconciliation() {
   const from = document.getElementById('f-from').value;
   const to = document.getElementById('f-to').value;
   const userSel = document.getElementById('f-user');
+  const company = document.getElementById('f-company').value;
   if (from) p.set('from', from);
   if (to) p.set('to', to);
   if (userSel && userSel.value) p.set('userId', userSel.value);
+  if (company) p.set('companyId', company); // le prévu/réel devient propre à l'entreprise
   const qs = p.toString();
   const rec = await api('/api/reconciliation' + (qs ? '?' + qs : ''));
 
