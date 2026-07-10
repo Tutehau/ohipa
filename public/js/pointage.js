@@ -64,14 +64,17 @@ async function refreshToday() {
   }
   const planned = plannings.filter((s) => s.date === today).reduce((sum, s) => sum + s.hours, 0);
 
+  const breakH = breakMs / 3600000;
+  const presence = worked + breakH; // présence = travail + pause (comparée au prévu)
+  document.getElementById('today-presence').textContent = roundH(presence) + 'h';
   document.getElementById('today-worked').textContent = roundH(worked) + 'h';
   document.getElementById('today-planned').textContent = roundH(planned) + 'h';
-  document.getElementById('today-break').textContent = roundH(breakMs / 3600000) + 'h';
+  document.getElementById('today-break').textContent = roundH(breakH) + 'h';
   document.getElementById('today-segments').textContent = segs.length;
-  const pct = planned > 0 ? Math.min(100, Math.round((worked / planned) * 100)) : 0;
+  const pct = planned > 0 ? Math.min(100, Math.round((presence / planned) * 100)) : 0;
   const bar = document.getElementById('today-progress');
   bar.style.width = pct + '%';
-  bar.className = 'progress-bar ' + (worked >= planned && planned > 0 ? 'bg-success' : '');
+  bar.className = 'progress-bar ' + (presence >= planned && planned > 0 ? 'bg-success' : '');
 
   renderTimeline(segs);
 }

@@ -122,14 +122,25 @@ router.get('/reconciliation', isAuth, (req, res) => {
       ${req.query.to ? 'AND date <= @to' : ''}
     GROUP BY date`).all(p);
 
-  const real = db.prepare(`
-    SELECT ${DAY} AS day,
-      SUM((julianday(clock_out) - julianday(clock_in)) * 24) AS real
+  // « Réel » = temps de PRÉSENCE (travail + pauses). Le planning inclut la
+  // pause : celle-ci compte comme présence et ne crée donc pas d'écart négatif.
+  const segs = db.prepare(`
+    SELECT ${DAY} AS day, clock_in AS ci, clock_out AS co, end_reason AS reason
     FROM pointages
     WHERE user_id = @uid AND clock_out IS NOT NULL
       ${req.query.from ? `AND ${DAY} >= @from` : ''}
       ${req.query.to ? `AND ${DAY} <= @to` : ''}
-    GROUP BY day`).all(p);
+    ORDER BY clock_in`).all(p);
+  const daySegs = {};
+  for (const s of segs) (daySegs[s.day] ||= []).push(s);
+  const real = Object.entries(daySegs).map(([day, arr]) => {
+    let h = 0;
+    for (let i = 0; i < arr.length; i++) {
+      h += (new Date(arr[i].co) - new Date(arr[i].ci)) / 3600000;                                  // travail
+      if (arr[i].reason === 'pause' && arr[i + 1]) h += (new Date(arr[i + 1].ci) - new Date(arr[i].co)) / 3600000; // pause = présence
+    }
+    return { day, real: h };
+  });
 
   const byDay = {};
   const round = (n) => Math.round((n || 0) * 100) / 100;

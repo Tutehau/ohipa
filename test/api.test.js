@@ -327,6 +327,22 @@ test('kiosque : PIN + badge arrivée/départ + rejets', async () => {
   assert.equal((await nateClient('GET', '/api/pointages')).json.length, 1);
 });
 
+test('réconciliation : la pause compte comme présence (écart nul)', async () => {
+  const crypto = require('node:crypto');
+  const c = await makeNormalUser('paul', 'paul@test.fr', 'secret1');
+  const uid = db.prepare("SELECT id FROM users WHERE username = 'paul'").get().id;
+  const ins = db.prepare('INSERT INTO pointages (id,user_id,work_date,clock_in,clock_out,end_reason,created_at) VALUES (?,?,?,?,?,?,?)');
+  // 4h travail + 1h pause + 3h travail = 7h travaillées, 8h de présence
+  ins.run(crypto.randomUUID(), uid, '2026-08-01', '2026-08-01T08:00:00.000Z', '2026-08-01T12:00:00.000Z', 'pause', 'x');
+  ins.run(crypto.randomUUID(), uid, '2026-08-01', '2026-08-01T13:00:00.000Z', '2026-08-01T16:00:00.000Z', 'depart', 'x');
+  await c('POST', '/api/plannings', { date: '2026-08-01', startTime: '08:00', endTime: '16:00' }); // prévu 8h
+
+  const rec = (await c('GET', '/api/reconciliation?from=2026-08-01&to=2026-08-01')).json;
+  assert.equal(rec.days[0].planned, 8, 'le prévu reste 8h (pause non déduite)');
+  assert.equal(rec.days[0].real, 8, 'réel = présence = travail + pause');
+  assert.equal(rec.days[0].ecart, 0, "aucun écart un jour normal avec pause");
+});
+
 // Utilitaire : récupère un cookie de session pour un appel fetch direct.
 async function loginCookie(username, password) {
   const res = await fetch(base + '/api/login', {
