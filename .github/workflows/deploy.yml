@@ -26,10 +26,17 @@ jobs:
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     steps:
-      - name: Déclencher le redéploiement Coolify
+      # NB : Coolify auto-déploie déjà sur push (webhook). Cette étape n'est
+      # qu'un déclencheur de secours : on réessaie, et on ne casse pas le
+      # pipeline si le runner GitHub n'arrive pas à joindre Coolify (blip réseau).
+      - name: Déclencher le redéploiement Coolify (best-effort)
+        continue-on-error: true
         env:
           COOLIFY_TOKEN: ${{ secrets.COOLIFY_TOKEN }}
         run: |
-          curl --fail --silent --show-error \
+          curl --fail --show-error \
+            --retry 5 --retry-all-errors --retry-delay 15 \
+            --connect-timeout 20 --max-time 45 \
             -H "Authorization: Bearer $COOLIFY_TOKEN" \
-            "https://coolify.tutehau.cloud/api/v1/deploy?uuid=twsa1mafn5vpmk2vy5474pde&force=true"
+            "https://coolify.tutehau.cloud/api/v1/deploy?uuid=twsa1mafn5vpmk2vy5474pde&force=true" \
+          || echo "Déclencheur non abouti (réseau) — Coolify auto-déploie sur push, sans impact."
