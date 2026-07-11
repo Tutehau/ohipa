@@ -5,3 +5,6 @@ data/*.db
 data/*.db-*
 data/*.migrated
 .DS_Store
+
+# Réglages Claude Code personnels (auto-commit/push local)
+.claude/settings.local.json
