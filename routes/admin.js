@@ -231,7 +231,13 @@ router.get('/admin/export.csv', isAuth, isAdmin, (req, res) => {
     WHERE ${DAY} BETWEEN @from AND @to ${cc}
     ORDER BY day, u.username`).all(p);
 
-  const esc = (v) => { const s = String(v ?? ''); return /[";\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s; };
+  // Échappe une cellule CSV et neutralise l'injection de formule : un préfixe
+  // apostrophe empêche Excel/Sheets d'exécuter les valeurs commençant par = + - @ tab.
+  const esc = (v) => {
+    let s = String(v ?? '');
+    if (/^[=+\-@\t\r]/.test(s)) s = "'" + s;
+    return /[";\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
+  };
   const hhmm = (iso) => (iso || '').substr(11, 5); // portion HH:MM de l'ISO
   const header = ['Date', 'Employé', 'Société', 'Arrivée', 'Départ', 'Heures', 'Fin'];
   const lines = [header.join(';')];
