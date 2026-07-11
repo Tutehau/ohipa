@@ -1,7 +1,7 @@
 // Navigation des pages utilisateur.
 // - Desktop (>=992px) : barre supérieure avec tous les liens.
 // - Mobile (<992px)   : barre supérieure réduite (logo + déconnexion) +
-//                       bottom navbar fixe (5 essentiels).
+//                       bottom navbar fixe (4 onglets + action centrale « Pointer »).
 // `active` = identifiant de la page courante pour surligner le bon lien.
 function renderNav(me, active) {
   // Liens complets (barre supérieure desktop).
@@ -11,13 +11,6 @@ function renderNav(me, active) {
     { key: 'planning', href: 'planning.html', icon: 'bi-calendar-week', label: 'Planning' },
     { key: 'history', href: 'history.html', icon: 'bi-list-ul', label: 'Historique' },
     { key: 'reports', href: 'reports.html', icon: 'bi-bar-chart-line', label: 'Rapports' },
-  ];
-  // Sous-ensemble affiché dans la bottom navbar mobile (labels courts).
-  const bottomKeys = [
-    { key: 'dashboard', href: 'dashboard.html', icon: 'bi-speedometer2', short: 'Accueil' },
-    { key: 'pointage', href: 'pointage.html', icon: 'bi-fingerprint', short: 'Pointage' },
-    { key: 'planning', href: 'planning.html', icon: 'bi-calendar-week', short: 'Planning' },
-    { key: 'reports', href: 'reports.html', icon: 'bi-bar-chart-line', short: 'Rapports' },
   ];
 
   // --- Barre supérieure (liens complets, visibles à partir de lg) ---
@@ -62,22 +55,33 @@ function renderNav(me, active) {
     </div>`;
 
   // --- Bottom navbar (mobile uniquement) ---
-  const bnItems = bottomKeys.map(l => `
+  // 4 onglets répartis autour d'une action centrale surélevée (Pointer).
+  const bnLeft = [
+    { key: 'dashboard', href: 'dashboard.html', icon: 'bi-house-door', short: 'Accueil' },
+    { key: 'planning', href: 'planning.html', icon: 'bi-calendar-week', short: 'Planning' },
+  ];
+  const bnRight = [
+    { key: 'history', href: 'history.html', icon: 'bi-list-ul', short: 'Historique' },
+    { key: 'reports', href: 'reports.html', icon: 'bi-bar-chart-line', short: 'Rapports' },
+  ];
+  const bnTab = (l) => `
     <a class="bn-item ${l.key === active ? 'active' : ''}" href="${l.href}">
       <i class="bi ${l.icon}"></i><span>${l.short}</span>
-    </a>`);
-  if (me.role === 'admin') {
-    bnItems.push(`
+    </a>`;
+  const bnCenter = `
+    <a class="bn-item bn-primary ${active === 'pointage' ? 'active' : ''}" href="pointage.html" aria-label="Pointer">
+      <span class="bn-fab"><i class="bi bi-fingerprint"></i></span><span>Pointer</span>
+    </a>`;
+  const bnAdmin = me.role === 'admin' ? `
     <a class="bn-item admin ${active === 'admin' ? 'active' : ''}" href="admin-dashboard.html">
       <i class="bi bi-shield-lock"></i><span>Admin</span>
-    </a>`);
-  }
+    </a>` : '';
 
   document.getElementById('bottom-nav')?.remove();          // évite les doublons
   const nav = document.createElement('nav');
   nav.id = 'bottom-nav';
   nav.className = 'bottom-nav d-lg-none';
-  nav.innerHTML = bnItems.join('');
+  nav.innerHTML = bnLeft.map(bnTab).join('') + bnCenter + bnRight.map(bnTab).join('') + bnAdmin;
   document.body.appendChild(nav);
   document.body.classList.add('has-bottom-nav');
 }
