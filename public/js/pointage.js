@@ -54,15 +54,21 @@ async function refreshStatus() {
 
 async function refreshToday() {
   const today = localDate();
+  // Scope à la société pointée (celle du sélecteur) : aucun mélange dans présence/prévu/barre.
+  const scope = document.getElementById('company-select').value || null;
   const [pointages, plannings] = await Promise.all([api('/api/pointages'), api('/api/plannings')]);
-  const segs = pointages.filter((p) => p.workDate === today).sort((a, b) => new Date(a.clockIn) - new Date(b.clockIn));
+  const segs = pointages
+    .filter((p) => p.workDate === today && (p.companyId || null) === scope)
+    .sort((a, b) => new Date(a.clockIn) - new Date(b.clockIn));
 
   let worked = 0, breakMs = 0;
   for (let i = 0; i < segs.length; i++) {
     if (segs[i].clockOut) worked += segs[i].hours;
     if (segs[i].endReason === 'pause' && segs[i].clockOut && segs[i + 1]) breakMs += new Date(segs[i + 1].clockIn) - new Date(segs[i].clockOut);
   }
-  const planned = plannings.filter((s) => s.date === today).reduce((sum, s) => sum + s.hours, 0);
+  const planned = plannings
+    .filter((s) => s.date === today && (s.companyId || null) === scope)
+    .reduce((sum, s) => sum + s.hours, 0);
 
   const breakH = breakMs / 3600000;
   const presence = worked + breakH; // présence = travail + pause (comparée au prévu)
@@ -102,7 +108,9 @@ function renderTimeline(segs) {
   }).join('');
 }
 
-async function refreshAll() { await Promise.all([refreshStatus(), refreshToday()]); }
+// refreshStatus doit précéder refreshToday : il positionne le sélecteur sur la
+// société pointée, dont refreshToday se sert pour scoper le panneau (aucun mélange).
+async function refreshAll() { await refreshStatus(); await refreshToday(); }
 
 (async () => {
   const me = await requireAuth();
@@ -114,6 +122,9 @@ async function refreshAll() { await Promise.all([refreshStatus(), refreshToday()
   const post = async (url, body) => { await api(url, 'POST', body); await refreshAll(); };
   const companyId = () => document.getElementById('company-select').value || null;
   const clockIn = () => post('/api/pointages/clock-in', { companyId: companyId(), date: localDate() }).catch((e) => showAlert(e.message));
+
+  // À l'arrêt, changer de société rescope le panneau « aujourd'hui » (aucun mélange).
+  document.getElementById('company-select').onchange = () => { refreshToday().catch((e) => showAlert(e.message)); };
 
   document.getElementById('btn-in').onclick = clockIn;
   document.getElementById('btn-resume').onclick = clockIn;

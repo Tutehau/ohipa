@@ -1,6 +1,7 @@
 let companies = [];
 let segById = {};
 let modal = null;
+let histCompany = ''; // '' = toutes ; sinon totaux journaliers pour cette entreprise seule
 
 const roundH = (n) => Math.round((n || 0) * 100) / 100;
 const localDate = () => new Date().toLocaleDateString('sv-SE');
@@ -18,7 +19,9 @@ async function loadCompanies(selectedId) {
 }
 
 async function load() {
-  const all = await api('/api/pointages');
+  const raw = await api('/api/pointages');
+  // Scope entreprise : aucun mélange dans les totaux journaliers (cohérent avec le dashboard).
+  const all = histCompany ? raw.filter((p) => p.companyId === histCompany) : raw;
   segById = {};
   const box = document.getElementById('history');
   if (!all.length) {
@@ -84,6 +87,13 @@ function openEdit(p) {
   renderNav(me, 'history');
   modal = new bootstrap.Modal(document.getElementById('seg-modal'));
   await loadCompanies();
+
+  // Sélecteur d'entreprise : scope les totaux journaliers (aucun mélange).
+  const hc = document.getElementById('hist-company');
+  hc.innerHTML = '<option value="">Toutes les entreprises</option>' +
+    companies.map((c) => `<option value="${escapeHtml(c.id)}">${escapeHtml(c.name)}</option>`).join('');
+  hc.onchange = () => { histCompany = hc.value; load(); };
+
   await load();
 
   document.getElementById('btn-add').onclick = openNew;

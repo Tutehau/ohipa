@@ -1,6 +1,7 @@
 let companies = [];
 let weekOffset = 0;
 let modal = null;
+let planCompany = ''; // '' = toutes ; sinon planning scopé à cette entreprise seule
 
 const roundH = (n) => Math.round((n || 0) * 100) / 100;
 const isoOf = (d) => d.toLocaleDateString('sv-SE');
@@ -47,7 +48,9 @@ async function loadWeek() {
     weekOffset === 0 ? 'Cette semaine' : `${days[0].num} – ${days[6].num}`;
   document.getElementById('week-today').classList.toggle('active', weekOffset === 0);
 
-  weekSlots = await api(`/api/plannings?from=${days[0].iso}&to=${days[6].iso}`);
+  const rawSlots = await api(`/api/plannings?from=${days[0].iso}&to=${days[6].iso}`);
+  // Scope entreprise : ni la grille, ni le détail, ni le total ne mélangent (aucun mélange).
+  weekSlots = planCompany ? rawSlots.filter((s) => s.companyId === planCompany) : rawSlots;
   const byDay = {};
   for (const s of weekSlots) (byDay[s.date] ||= []).push(s);
   byDayCache = byDay;
@@ -127,6 +130,13 @@ function openEdit(slot) {
   renderNav(me, 'planning');
   modal = new bootstrap.Modal(document.getElementById('slot-modal'));
   await loadCompanies();
+
+  // Sélecteur d'entreprise : scope tout l'écran planning (aucun mélange).
+  const pc = document.getElementById('plan-company');
+  pc.innerHTML = '<option value="">Toutes les entreprises</option>' +
+    companies.map((c) => `<option value="${escapeHtml(c.id)}">${escapeHtml(c.name)}</option>`).join('');
+  pc.onchange = () => { planCompany = pc.value; loadWeek(); };
+
   await loadWeek();
 
   document.getElementById('week-prev').onclick = () => { weekOffset--; loadWeek(); };
