@@ -33,29 +33,35 @@
       </nav>
 
       <main class="col-12 col-lg-10 ms-sm-auto p-4">
-        <h2 class="mb-4"><i class="bi bi-people me-2"></i>Gestion des utilisateurs</h2>
+        <div class="admin-head">
+          <div>
+            <h2 class="mb-0"><i class="bi bi-people me-2"></i>Utilisateurs</h2>
+            <p class="lead-sub">Collaborateurs, rôles, badgeuse et heures sur 30 jours.</p>
+          </div>
+        </div>
 
-        <div class="card p-4 mb-4 shadow-sm">
-          <h5 class="mb-3"><i class="bi bi-person-plus me-2"></i>Inviter un collaborateur</h5>
-          <div id="alert" class="d-none" role="alert"></div>
+        <div id="alert" class="alert-toast d-none" role="alert"></div>
+
+        <section class="admin-section">
+          <div class="sec-head"><h5><i class="bi bi-person-plus text-success"></i>Inviter un collaborateur</h5></div>
           <form id="invite-form" class="row g-2">
             <div class="col-md-3"><input type="text" id="inv-user" class="form-control" placeholder="Username" required></div>
             <div class="col-md-4"><input type="email" id="inv-email" class="form-control" placeholder="Email"></div>
             <div class="col-md-3"><input type="password" id="inv-pass" class="form-control" placeholder="Mot de passe" required></div>
             <div class="col-md-2"><button type="submit" class="btn btn-success w-100"><i class="bi bi-send me-1"></i>Inviter</button></div>
           </form>
-        </div>
+        </section>
 
-        <div class="card p-4 shadow-sm">
-          <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
-            <h5 class="mb-0"><i class="bi bi-list-ul me-2"></i>Liste des utilisateurs
+        <section class="admin-section">
+          <div class="sec-head">
+            <h5><i class="bi bi-list-ul"></i>Liste des utilisateurs
               <small class="text-muted ms-1">· heures sur 30 j</small></h5>
             <div style="max-width:240px;flex:1">
               <input type="search" id="user-search" class="form-control form-control-sm" placeholder="Rechercher un nom, un email…">
             </div>
           </div>
           <ul id="user-list" class="list-group list-group-flush"></ul>
-        </div>
+        </section>
       </main>
     </div>
   </div>

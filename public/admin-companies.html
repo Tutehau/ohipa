@@ -33,21 +33,27 @@
       </nav>
 
       <main class="col-12 col-lg-10 ms-sm-auto p-4">
-        <h2 class="mb-4"><i class="bi bi-building me-2"></i>Gestion des entreprises</h2>
+        <div class="admin-head">
+          <div>
+            <h2 class="mb-0"><i class="bi bi-building me-2"></i>Entreprises</h2>
+            <p class="lead-sub">Sociétés de l'organisation · activité sur 30 jours.</p>
+          </div>
+        </div>
 
-        <div class="card p-4 mb-4 shadow-sm">
-          <h5 class="mb-3"><i class="bi bi-plus-circle me-2"></i>Ajouter une entreprise</h5>
-          <div id="alert" class="d-none" role="alert"></div>
+        <div id="alert" class="alert-toast d-none" role="alert"></div>
+
+        <section class="admin-section">
+          <div class="sec-head"><h5><i class="bi bi-plus-circle text-primary"></i>Ajouter une entreprise</h5></div>
           <form id="company-form" class="row g-2">
             <div class="col-md-10"><input type="text" id="comp-name" class="form-control" placeholder="Nom de l'entreprise" required></div>
             <div class="col-md-2"><button type="submit" class="btn btn-primary w-100"><i class="bi bi-plus-lg me-1"></i>Ajouter</button></div>
           </form>
-        </div>
+        </section>
 
-        <div class="card p-4 shadow-sm">
-          <h5 class="mb-3"><i class="bi bi-list-ul me-2"></i>Liste des entreprises</h5>
+        <section class="admin-section">
+          <div class="sec-head"><h5><i class="bi bi-list-ul"></i>Liste des entreprises</h5></div>
           <ul id="company-list" class="list-group list-group-flush"></ul>
-        </div>
+        </section>
       </main>
     </div>
   </div>
