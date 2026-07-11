@@ -10,7 +10,7 @@
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="Ohipa">
-  <title>Admin · Tableau de bord | Ohipa</title>
+  <title>Admin · Rapports | Ohipa</title>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-9ndCyUaIbzAi2FUVXJi0CjmCapSmO7SnpJef0486qhLnuZ2cdeRhO02iuK6FUUVM" crossorigin="anonymous">
   <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet" integrity="sha384-XGjxtQfXaH2tnPFa9x+ruJTuLE3Aa6LhHSWRr1XeTyhezb4abCG4ccI5AkVDxqC+" crossorigin="anonymous">
   <link href="css/style.css" rel="stylesheet">
@@ -22,11 +22,11 @@
       <nav class="col-lg-2 d-none d-lg-block sidebar p-3">
         <div class="brand mb-4 px-1"><img src="logo.png" alt="Ohipa"><span class="fw-bold fs-5">Ohipa</span></div>
         <ul class="nav flex-column gap-1">
-          <li class="nav-item"><a class="nav-link active" href="admin-dashboard.html"><i class="bi bi-graph-up"></i>Tableau de bord</a></li>
+          <li class="nav-item"><a class="nav-link" href="admin-dashboard.html"><i class="bi bi-graph-up"></i>Tableau de bord</a></li>
           <li class="nav-item"><a class="nav-link" href="admin-users.html"><i class="bi bi-people"></i>Utilisateurs</a></li>
           <li class="nav-item"><a class="nav-link" href="admin-companies.html"><i class="bi bi-building"></i>Entreprises</a></li>
           <li class="nav-item"><a class="nav-link" href="admin-kiosk.html"><i class="bi bi-qr-code"></i>Kiosques</a></li>
-          <li class="nav-item"><a class="nav-link" href="admin-reports.html"><i class="bi bi-bar-chart-line"></i>Rapports</a></li>
+          <li class="nav-item"><a class="nav-link active" href="admin-reports.html"><i class="bi bi-bar-chart-line"></i>Rapports</a></li>
           <li class="nav-item mt-3"><a class="nav-link text-warning" href="dashboard.html"><i class="bi bi-arrow-left"></i>Espace utilisateur</a></li>
           <li class="nav-item"><a class="nav-link text-danger" href="#" onclick="logout()"><i class="bi bi-box-arrow-right"></i>Déconnexion</a></li>
         </ul>
@@ -35,15 +35,15 @@
       <main class="col-12 col-lg-10 ms-sm-auto p-4">
         <div class="admin-head">
           <div>
-            <h2 class="mb-0"><i class="bi bi-graph-up me-2"></i>Tableau de bord</h2>
-            <p class="lead-sub">Activité réelle de l'équipe, tirée des pointages.</p>
+            <h2 class="mb-0"><i class="bi bi-bar-chart-line me-2"></i>Rapports d'équipe</h2>
+            <p class="lead-sub">Heures réelles vs prévues, par employé et par société.</p>
           </div>
           <div class="admin-filters">
             <select id="f-period" class="form-select form-select-sm" aria-label="Période">
               <option value="week">Cette semaine</option>
-              <option value="7">7 derniers jours</option>
+              <option value="30" selected>30 derniers jours</option>
               <option value="month">Ce mois-ci</option>
-              <option value="30">30 derniers jours</option>
+              <option value="7">7 derniers jours</option>
             </select>
             <select id="f-company" class="form-select form-select-sm" aria-label="Entreprise">
               <option value="">Toutes les entreprises</option>
@@ -55,52 +55,66 @@
         <div id="alert" class="alert-toast d-none" role="alert"></div>
 
         <div class="kpi-grid">
-          <div class="kpi accent-green">
-            <div class="kpi-label"><i class="bi bi-broadcast"></i>Présents maintenant</div>
-            <div class="kpi-value" id="kpi-present">—</div>
-            <div class="kpi-sub">en poste à l'instant</div>
-            <i class="bi bi-broadcast kpi-ico"></i>
-          </div>
           <div class="kpi accent-blue">
-            <div class="kpi-label"><i class="bi bi-clock-history"></i>Heures travaillées</div>
-            <div class="kpi-value" id="kpi-hours">—</div>
-            <div class="kpi-sub" id="kpi-hours-sub">sur la période</div>
+            <div class="kpi-label"><i class="bi bi-clock-history"></i>Heures réelles</div>
+            <div class="kpi-value" id="kpi-real">—</div>
+            <div class="kpi-sub" id="kpi-period">sur la période</div>
             <i class="bi bi-clock-history kpi-ico"></i>
           </div>
           <div class="kpi accent-cyan">
-            <div class="kpi-label"><i class="bi bi-people"></i>Employés actifs</div>
-            <div class="kpi-value" id="kpi-users">—</div>
-            <div class="kpi-sub" id="kpi-companies-sub">—</div>
-            <i class="bi bi-people kpi-ico"></i>
+            <div class="kpi-label"><i class="bi bi-calendar-check"></i>Heures prévues</div>
+            <div class="kpi-value" id="kpi-planned">—</div>
+            <div class="kpi-sub">planning cumulé</div>
+            <i class="bi bi-calendar-check kpi-ico"></i>
           </div>
           <div class="kpi accent-amber">
-            <div class="kpi-label"><i class="bi bi-exclamation-triangle"></i>Anomalies</div>
-            <div class="kpi-value" id="kpi-anomalies">—</div>
-            <div class="kpi-sub">à vérifier</div>
-            <i class="bi bi-exclamation-triangle kpi-ico"></i>
+            <div class="kpi-label"><i class="bi bi-graph-up-arrow"></i>Écart équipe</div>
+            <div class="kpi-value" id="kpi-ecart">—</div>
+            <div class="kpi-sub">réel − prévu</div>
+            <i class="bi bi-graph-up-arrow kpi-ico"></i>
           </div>
         </div>
 
         <section class="admin-section">
           <div class="sec-head">
-            <h5><i class="bi bi-broadcast text-success"></i>Présence en direct</h5>
-            <span class="sec-count" id="presence-count"></span>
+            <h5><i class="bi bi-person-lines-fill"></i>Par employé</h5>
+            <span class="sec-count" id="emp-count"></span>
           </div>
-          <div id="presence"></div>
+          <div class="table-responsive">
+            <table class="table align-middle mb-0">
+              <thead>
+                <tr>
+                  <th>Employé</th>
+                  <th class="text-end">Réel</th>
+                  <th class="text-end">Prévu</th>
+                  <th class="text-end">Écart</th>
+                  <th class="text-end d-none d-md-table-cell">Dernière activité</th>
+                </tr>
+              </thead>
+              <tbody id="by-user"></tbody>
+            </table>
+          </div>
         </section>
 
         <section class="admin-section">
           <div class="sec-head">
-            <h5><i class="bi bi-exclamation-triangle text-warning"></i>Anomalies &amp; absences</h5>
-            <span class="sec-count" id="anomalies-count"></span>
+            <h5><i class="bi bi-building"></i>Par société</h5>
+            <span class="sec-count" id="comp-count"></span>
           </div>
-          <div id="anomalies"></div>
+          <div class="table-responsive">
+            <table class="table align-middle mb-0">
+              <thead>
+                <tr><th>Société</th><th class="text-end">Employés</th><th class="text-end">Heures</th></tr>
+              </thead>
+              <tbody id="by-company"></tbody>
+            </table>
+          </div>
         </section>
       </main>
     </div>
   </div>
   <script src="js/api.js"></script>
   <script src="js/admin-nav.js"></script>
-  <script src="js/admin-dashboard.js"></script>
+  <script src="js/admin-reports.js"></script>
 </body>
 </html>

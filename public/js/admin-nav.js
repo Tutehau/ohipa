@@ -32,7 +32,7 @@ function renderAdminNav(active) {
     { key: 'users', href: 'admin-users.html', icon: 'bi-people', short: 'Équipe' },
     { key: 'companies', href: 'admin-companies.html', icon: 'bi-building', short: 'Sociétés' },
     { key: 'kiosk', href: 'admin-kiosk.html', icon: 'bi-qr-code', short: 'Kiosques' },
-    { key: 'reports', href: 'reports.html', icon: 'bi-bar-chart-line', short: 'Rapports' },
+    { key: 'reports', href: 'admin-reports.html', icon: 'bi-bar-chart-line', short: 'Rapports' },
   ];
   document.getElementById('bottom-nav')?.remove();
   const nav = document.createElement('nav');

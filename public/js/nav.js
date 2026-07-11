@@ -47,6 +47,7 @@ function renderNav(me, active) {
         </li>
       </ul>
       <span class="ms-auto d-lg-none d-flex gap-2">
+        ${me.role === 'admin' ? `<a class="btn btn-outline-warning btn-sm" href="admin-dashboard.html" title="Administration"><i class="bi bi-shield-lock"></i></a>` : ''}
         ${themeToggleHtml()}
         <button class="btn btn-outline-light btn-sm" onclick="logout()" title="Déconnexion">
           <i class="bi bi-box-arrow-right"></i>
@@ -72,16 +73,14 @@ function renderNav(me, active) {
     <a class="bn-item bn-primary ${active === 'pointage' ? 'active' : ''}" href="pointage.html" aria-label="Pointer">
       <span class="bn-fab"><i class="bi bi-fingerprint"></i></span><span>Pointer</span>
     </a>`;
-  const bnAdmin = me.role === 'admin' ? `
-    <a class="bn-item admin ${active === 'admin' ? 'active' : ''}" href="admin-dashboard.html">
-      <i class="bi bi-shield-lock"></i><span>Admin</span>
-    </a>` : '';
+  // NB : l'accès admin n'est PAS dans la bottom nav — il vit dans le header
+  // (bouton bouclier), aussi bien sur desktop que sur mobile.
 
   document.getElementById('bottom-nav')?.remove();          // évite les doublons
   const nav = document.createElement('nav');
   nav.id = 'bottom-nav';
   nav.className = 'bottom-nav d-lg-none';
-  nav.innerHTML = bnLeft.map(bnTab).join('') + bnCenter + bnRight.map(bnTab).join('') + bnAdmin;
+  nav.innerHTML = bnLeft.map(bnTab).join('') + bnCenter + bnRight.map(bnTab).join('');
   document.body.appendChild(nav);
   document.body.classList.add('has-bottom-nav');
 }
