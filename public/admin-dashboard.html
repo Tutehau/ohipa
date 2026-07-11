@@ -33,39 +33,69 @@
       </nav>
 
       <main class="col-12 col-lg-10 ms-sm-auto p-4">
-        <h2 class="mb-4"><i class="bi bi-graph-up me-2"></i>Tableau de bord administrateur</h2>
-        <div class="row g-3 mb-4">
-          <div class="col-md-4">
-            <div class="card stat-card p-3 shadow-sm">
-              <small class="text-muted"><i class="bi bi-people me-1"></i>Utilisateurs</small>
-              <h3 id="stat-users">0</h3>
-            </div>
+        <div class="admin-head">
+          <div>
+            <h2 class="mb-0"><i class="bi bi-graph-up me-2"></i>Tableau de bord</h2>
+            <p class="lead-sub">Activité réelle de l'équipe, tirée des pointages.</p>
           </div>
-          <div class="col-md-4">
-            <div class="card stat-card p-3 shadow-sm" style="border-left-color:#198754">
-              <small class="text-muted"><i class="bi bi-building me-1"></i>Entreprises</small>
-              <h3 id="stat-companies">0</h3>
-            </div>
-          </div>
-          <div class="col-md-4">
-            <div class="card stat-card p-3 shadow-sm" style="border-left-color:#ffc107">
-              <small class="text-muted"><i class="bi bi-clock me-1"></i>Total des heures</small>
-              <h3 id="stat-hours">0h</h3>
-            </div>
+          <div class="admin-filters">
+            <select id="f-period" class="form-select form-select-sm" aria-label="Période">
+              <option value="week">Cette semaine</option>
+              <option value="7">7 derniers jours</option>
+              <option value="month">Ce mois-ci</option>
+              <option value="30">30 derniers jours</option>
+            </select>
+            <select id="f-company" class="form-select form-select-sm" aria-label="Entreprise">
+              <option value="">Toutes les entreprises</option>
+            </select>
+            <button id="btn-export" class="btn btn-outline-light btn-sm"><i class="bi bi-download me-1"></i>Exporter CSV</button>
           </div>
         </div>
 
-        <div class="card p-4 shadow-sm">
-          <h5 class="mb-3"><i class="bi bi-activity me-2"></i>Activité récente</h5>
-          <div class="table-responsive">
-            <table class="table table-sm align-middle">
-              <thead class="table-light">
-                <tr><th>Date</th><th>Utilisateur</th><th>Entreprise</th><th>Heures</th></tr>
-              </thead>
-              <tbody id="recent-activity"></tbody>
-            </table>
+        <div id="alert" class="alert-toast d-none" role="alert"></div>
+
+        <div class="kpi-grid">
+          <div class="kpi accent-green">
+            <div class="kpi-label"><i class="bi bi-broadcast"></i>Présents maintenant</div>
+            <div class="kpi-value" id="kpi-present">—</div>
+            <div class="kpi-sub">en poste à l'instant</div>
+            <i class="bi bi-broadcast kpi-ico"></i>
+          </div>
+          <div class="kpi accent-blue">
+            <div class="kpi-label"><i class="bi bi-clock-history"></i>Heures travaillées</div>
+            <div class="kpi-value" id="kpi-hours">—</div>
+            <div class="kpi-sub" id="kpi-hours-sub">sur la période</div>
+            <i class="bi bi-clock-history kpi-ico"></i>
+          </div>
+          <div class="kpi accent-cyan">
+            <div class="kpi-label"><i class="bi bi-people"></i>Employés actifs</div>
+            <div class="kpi-value" id="kpi-users">—</div>
+            <div class="kpi-sub" id="kpi-companies-sub">—</div>
+            <i class="bi bi-people kpi-ico"></i>
+          </div>
+          <div class="kpi accent-amber">
+            <div class="kpi-label"><i class="bi bi-exclamation-triangle"></i>Anomalies</div>
+            <div class="kpi-value" id="kpi-anomalies">—</div>
+            <div class="kpi-sub">à vérifier</div>
+            <i class="bi bi-exclamation-triangle kpi-ico"></i>
           </div>
         </div>
+
+        <section class="admin-section">
+          <div class="sec-head">
+            <h5><i class="bi bi-broadcast text-success"></i>Présence en direct</h5>
+            <span class="sec-count" id="presence-count"></span>
+          </div>
+          <div id="presence"></div>
+        </section>
+
+        <section class="admin-section">
+          <div class="sec-head">
+            <h5><i class="bi bi-exclamation-triangle text-warning"></i>Anomalies &amp; absences</h5>
+            <span class="sec-count" id="anomalies-count"></span>
+          </div>
+          <div id="anomalies"></div>
+        </section>
       </main>
     </div>
   </div>

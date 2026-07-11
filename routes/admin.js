@@ -9,6 +9,60 @@ const { hashPin, hashToken } = require('./kiosk');
 
 const router = express.Router();
 
+// Durée d'un segment terminé (heures) et jour local de rattachement : mêmes
+// règles que côté pointage, réutilisées pour tous les agrégats admin afin que
+// l'admin calcule les heures exactement comme l'écran utilisateur.
+const DURATION = "CASE WHEN clock_out IS NULL THEN 0 ELSE (julianday(clock_out) - julianday(clock_in)) * 24 END";
+const DAY = "COALESCE(work_date, substr(clock_in, 1, 10))";
+const round = (n) => Math.round((n || 0) * 100) / 100;
+const isYmd = (s) => /^\d{4}-\d{2}-\d{2}$/.test(s || '');
+
+// Période demandée (défaut : 7 derniers jours), bornes en date locale YYYY-MM-DD.
+function range(q) {
+  const to = isYmd(q.to) ? q.to : new Date().toISOString().slice(0, 10);
+  let from = isYmd(q.from) ? q.from : null;
+  if (!from) { const d = new Date(to + 'T00:00:00'); d.setDate(d.getDate() - 6); from = d.toISOString().slice(0, 10); }
+  return { from, to };
+}
+
+// Heures travaillées (réel) + prévu (planning) + écart, par utilisateur actif,
+// sur une période. Source unique partagée par /admin/hours et /admin/anomalies.
+function perUserHours({ from, to, companyId }) {
+  const p = { from, to };
+  const cc = companyId ? 'AND p.company_id = @companyId' : '';
+  const ccPlan = companyId ? 'AND company_id = @companyId' : '';
+  if (companyId) p.companyId = companyId;
+
+  const worked = db.prepare(`
+    SELECT u.id AS userId, u.username,
+           COALESCE(SUM(${DURATION}), 0) AS worked,
+           MAX(p.clock_in) AS lastActivity,
+           SUM(CASE WHEN p.clock_out IS NULL THEN 1 ELSE 0 END) AS openNow
+    FROM users u
+    LEFT JOIN pointages p ON p.user_id = u.id AND ${DAY} BETWEEN @from AND @to ${cc}
+    WHERE u.active = 1
+    GROUP BY u.id ORDER BY u.username`).all(p);
+
+  const plannedRows = db.prepare(`
+    SELECT user_id AS userId,
+      SUM(((CAST(substr(end_time,1,2) AS INTEGER)*60 + CAST(substr(end_time,4,2) AS INTEGER)
+          - CAST(substr(start_time,1,2) AS INTEGER)*60 - CAST(substr(start_time,4,2) AS INTEGER)
+          + 1440) % 1440) / 60.0) AS planned
+    FROM plannings WHERE date BETWEEN @from AND @to ${ccPlan}
+    GROUP BY user_id`).all(p);
+  const planned = {};
+  for (const r of plannedRows) planned[r.userId] = r.planned;
+
+  return worked.map((w) => {
+    const pl = round(planned[w.userId] || 0);
+    return {
+      userId: w.userId, username: w.username,
+      worked: round(w.worked), planned: pl, ecart: round((w.worked || 0) - pl),
+      lastActivity: w.lastActivity, present: w.openNow > 0,
+    };
+  });
+}
+
 // --- Entreprises -----------------------------------------------------------
 // Lecture accessible à tout utilisateur connecté (pour le menu déroulant de saisie).
 router.get('/companies', isAuth, (req, res) => {
@@ -64,19 +118,144 @@ router.post('/admin/invite', isAuth, isAdmin, async (req, res) => {
   }
 });
 
-// --- Statistiques du tableau de bord admin ---------------------------------
+// --- Tableau de bord admin : KPI sur les VRAIES données (pointages/plannings) ---
 router.get('/admin/stats', isAuth, isAdmin, (req, res) => {
-  const users = db.prepare('SELECT COUNT(*) AS n FROM users').get().n;
+  const { from, to } = range(req.query);
+  const p = { from, to };
+  const cc = req.query.companyId ? 'AND p.company_id = @companyId' : '';
+  if (req.query.companyId) p.companyId = req.query.companyId;
+
+  const usersActive = db.prepare('SELECT COUNT(*) AS n FROM users WHERE active = 1').get().n;
   const companies = db.prepare('SELECT COUNT(*) AS n FROM companies').get().n;
-  const hours = db.prepare('SELECT COALESCE(SUM(hours), 0) AS h FROM time_entries').get().h;
-  const recent = db.prepare(`
-    SELECT e.date, e.hours, u.username, c.name AS companyName
-    FROM time_entries e
-    LEFT JOIN users u     ON u.id = e.user_id
-    LEFT JOIN companies c ON c.id = e.company_id
-    ORDER BY e.date DESC LIMIT 10
-  `).all();
-  res.json({ users, companies, hours, recent });
+  const hours = round(db.prepare(`
+    SELECT COALESCE(SUM(${DURATION}), 0) AS h FROM pointages p
+    WHERE clock_out IS NOT NULL AND ${DAY} BETWEEN @from AND @to ${cc}`).get(p).h);
+  const present = db.prepare(`SELECT COUNT(*) AS n FROM pointages p WHERE clock_out IS NULL ${cc}`).get(p).n;
+
+  const oublis = db.prepare(`
+    SELECT COUNT(*) AS n FROM pointages p
+    WHERE end_reason = 'oubli' AND ${DAY} BETWEEN @from AND @to ${cc}`).get(p).n;
+  const longOpen = db.prepare(`
+    SELECT COUNT(*) AS n FROM pointages p
+    WHERE clock_out IS NULL AND (julianday('now') - julianday(clock_in)) * 24 > 16 ${cc}`).get(p).n;
+
+  res.json({ from, to, usersActive, companies, hours, present, anomalies: oublis + longOpen });
+});
+
+// Présence en direct : segments encore ouverts (clock_out IS NULL).
+router.get('/admin/presence', isAuth, isAdmin, (req, res) => {
+  const p = {};
+  const cc = req.query.companyId ? 'AND p.company_id = @companyId' : '';
+  if (req.query.companyId) p.companyId = req.query.companyId;
+  res.json(db.prepare(`
+    SELECT p.id, p.clock_in AS since, u.username, c.name AS companyName,
+           (julianday('now') - julianday(p.clock_in)) * 24 AS hoursOpen
+    FROM pointages p
+    LEFT JOIN users u ON u.id = p.user_id
+    LEFT JOIN companies c ON c.id = p.company_id
+    WHERE p.clock_out IS NULL ${cc}
+    ORDER BY p.clock_in`).all(p));
+});
+
+// Heures par employé (réel/prévu/écart + présence + dernière activité) sur la période.
+router.get('/admin/hours', isAuth, isAdmin, (req, res) => {
+  const { from, to } = range(req.query);
+  res.json({ from, to, rows: perUserHours({ from, to, companyId: req.query.companyId }) });
+});
+
+// Anomalies : oublis, pointages ouverts trop longtemps, absences (jour planifié
+// sans pointage) et gros écarts prévu/réel.
+router.get('/admin/anomalies', isAuth, isAdmin, (req, res) => {
+  const { from, to } = range(req.query);
+  const p = { from, to };
+  const cc = req.query.companyId ? 'AND p.company_id = @companyId' : '';
+  const ccPlan = req.query.companyId ? 'AND pl.company_id = @companyId' : '';
+  if (req.query.companyId) p.companyId = req.query.companyId;
+
+  const oublis = db.prepare(`
+    SELECT ${DAY} AS day, p.clock_in AS clockIn, u.username
+    FROM pointages p LEFT JOIN users u ON u.id = p.user_id
+    WHERE p.end_reason = 'oubli' AND ${DAY} BETWEEN @from AND @to ${cc}
+    ORDER BY day DESC LIMIT 50`).all(p);
+
+  const longOpen = db.prepare(`
+    SELECT p.clock_in AS since, u.username, c.name AS companyName,
+           (julianday('now') - julianday(p.clock_in)) * 24 AS hoursOpen
+    FROM pointages p LEFT JOIN users u ON u.id = p.user_id LEFT JOIN companies c ON c.id = p.company_id
+    WHERE p.clock_out IS NULL AND (julianday('now') - julianday(p.clock_in)) * 24 > 16 ${cc}
+    ORDER BY since`).all(p);
+
+  const absences = db.prepare(`
+    SELECT pl.date AS day, u.username
+    FROM plannings pl JOIN users u ON u.id = pl.user_id
+    WHERE pl.date BETWEEN @from AND @to AND pl.date <= date('now') ${ccPlan}
+      AND NOT EXISTS (
+        SELECT 1 FROM pointages p
+        WHERE p.user_id = pl.user_id AND ${DAY} = pl.date ${cc})
+    GROUP BY pl.user_id, pl.date
+    ORDER BY day DESC LIMIT 50`).all(p);
+
+  const bigGaps = perUserHours({ from, to, companyId: req.query.companyId })
+    .filter((r) => Math.abs(r.ecart) >= 3)
+    .map((r) => ({ username: r.username, worked: r.worked, planned: r.planned, ecart: r.ecart }));
+
+  res.json({ from, to, oublis, longOpen, absences, bigGaps });
+});
+
+// Stats par entreprise (nb d'employés distincts + heures) sur la période.
+router.get('/admin/companies-stats', isAuth, isAdmin, (req, res) => {
+  const { from, to } = range(req.query);
+  res.json(db.prepare(`
+    SELECT c.id, c.name,
+      (SELECT COUNT(DISTINCT p.user_id) FROM pointages p
+         WHERE p.company_id = c.id AND ${DAY} BETWEEN @from AND @to) AS employees,
+      (SELECT COALESCE(SUM(${DURATION}), 0) FROM pointages p
+         WHERE p.company_id = c.id AND clock_out IS NOT NULL AND ${DAY} BETWEEN @from AND @to) AS hours
+    FROM companies c ORDER BY c.name`).all({ from, to })
+    .map((r) => ({ ...r, hours: round(r.hours) })));
+});
+
+// Export CSV des pointages sur la période (séparateur ';' + BOM : ouvre direct dans Excel FR).
+router.get('/admin/export.csv', isAuth, isAdmin, (req, res) => {
+  const { from, to } = range(req.query);
+  const p = { from, to };
+  const cc = req.query.companyId ? 'AND p.company_id = @companyId' : '';
+  if (req.query.companyId) p.companyId = req.query.companyId;
+  const rows = db.prepare(`
+    SELECT ${DAY} AS day, u.username, c.name AS companyName,
+           p.clock_in AS clockIn, p.clock_out AS clockOut, p.end_reason AS reason,
+           ${DURATION} AS hours
+    FROM pointages p
+    LEFT JOIN users u ON u.id = p.user_id
+    LEFT JOIN companies c ON c.id = p.company_id
+    WHERE ${DAY} BETWEEN @from AND @to ${cc}
+    ORDER BY day, u.username`).all(p);
+
+  const esc = (v) => { const s = String(v ?? ''); return /[";\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s; };
+  const hhmm = (iso) => (iso || '').substr(11, 5); // portion HH:MM de l'ISO
+  const header = ['Date', 'Employé', 'Société', 'Arrivée', 'Départ', 'Heures', 'Fin'];
+  const lines = [header.join(';')];
+  for (const r of rows) {
+    lines.push([
+      r.day, r.username || '', r.companyName || '', hhmm(r.clockIn), hhmm(r.clockOut),
+      round(r.hours).toString().replace('.', ','), r.reason || '',
+    ].map(esc).join(';'));
+  }
+  const csv = '﻿' + lines.join('\r\n');
+  res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+  res.setHeader('Content-Disposition', `attachment; filename="heures_${from}_${to}.csv"`);
+  res.send(csv);
+});
+
+// Réinitialise le mot de passe d'un utilisateur : génère un mot de passe
+// aléatoire, le renvoie une seule fois (à transmettre à l'employé).
+router.post('/admin/users/:id/reset-password', isAuth, isAdmin, async (req, res) => {
+  const user = db.prepare('SELECT id FROM users WHERE id = ?').get(req.params.id);
+  if (!user) return res.status(404).json({ message: 'Utilisateur introuvable' });
+  const pwd = crypto.randomBytes(9).toString('base64').replace(/[^a-zA-Z0-9]/g, '').slice(0, 10);
+  const hashed = await bcrypt.hash(pwd, 10);
+  db.prepare('UPDATE users SET password = ? WHERE id = ?').run(hashed, user.id);
+  res.json({ password: pwd });
 });
 
 // --- Modification / suppression d'entreprise -------------------------------

@@ -1,5 +1,14 @@
+const ymd = (d) => d.toLocaleDateString('sv-SE');
+function last30() {
+  const to = new Date(), from = new Date();
+  from.setDate(to.getDate() - 29);
+  return { from: ymd(from), to: ymd(to) };
+}
+
 async function loadCompanies() {
-  const companies = await api('/api/companies');
+  // companies-stats renvoie id + name + employés + heures (30 j) : source unique.
+  const { from, to } = last30();
+  const companies = await api(`/api/admin/companies-stats?from=${from}&to=${to}`);
   const list = document.getElementById('company-list');
   if (!companies.length) {
     list.innerHTML = `<li class="list-group-item text-muted text-center py-3">
@@ -7,8 +16,12 @@ async function loadCompanies() {
     return;
   }
   list.innerHTML = companies.map(c => `
-    <li class="list-group-item d-flex justify-content-between align-items-center">
-      <span><i class="bi bi-building me-2"></i>${escapeHtml(c.name)}</span>
+    <li class="list-group-item d-flex justify-content-between align-items-center flex-wrap gap-2">
+      <span><i class="bi bi-building me-2"></i>${escapeHtml(c.name)}
+        <small class="text-muted ms-2">
+          <i class="bi bi-people me-1"></i>${c.employees} employé${c.employees > 1 ? 's' : ''}
+          <i class="bi bi-clock-history ms-2 me-1"></i>${c.hours} h <span class="opacity-75">/ 30 j</span>
+        </small></span>
       <span class="d-flex gap-1">
         <button class="btn btn-sm btn-outline-light" data-action="rename" data-id="${escapeHtml(c.id)}" data-name="${escapeHtml(c.name)}" title="Renommer">
           <i class="bi bi-pencil"></i></button>
